@@ -94,40 +94,6 @@ class DenseBlock(nn.Module):
 class SICNNNet(nn.Module):
     def __init__(self, upscale_factor, batchsize):
         super(SICNNNet, self).__init__()
-        self.batchsize = batchsize
-        self.dense1 = DenseBlock(3)
-        self.deconv1 = nn.ConvTranspose2d(256, 256, (2,2), (2,2), padding=0) # ?
-        self.relude1 = nn.PReLU()
-
-        self.dense2 = DenseBlock(256)
-        self.deconv2 = nn.ConvTranspose2d(256, 256, (2,2), (2,2), (0,0)) # ?
-        self.relude2 = nn.PReLU()
-
-        self.dense3 = DenseBlock(256)
-        self.deconv3 = nn.ConvTranspose2d(256, 256, (5,5), (2,2), (2,2))
-        self.relude3 = nn.PReLU()
-        self.prebasic4_1 = BasicBlock(256, 64)
-        self.prebasic4_2 = BasicBlock(64, 32)
-        self.prebasic4_3 = BasicBlock(96, 32)
-        self.gen = nn.Conv2d(128, 3, (5,5), (1,1), padding=2)
-        self.tanh = nn.Tanh()
-        self.basic1a = BasicBlock(3, 32)
-        self.basic1b = BasicBlock(32, 64)
-        self.res1 = ResBlock(64, 64)
-        self.basic2 = BasicBlock(64, 128)
-        self.res2 = ResBlock(128, 128)
-        self.res3 = ResBlock(128, 128)
-        self.basic3 = BasicBlock(128, 256)
-        self.reslayer1 = []
-        for i in range(5):
-            self.reslayer1.append(ResBlock(256, 256))
-            self.reslayer1[i].cuda()
-        self.basic4 = BasicBlock(256, 512)
-        self.reslayer2 = []
-        for i in range(3):
-            self.reslayer2.append(ResBlock(512, 512))
-            self.reslayer2[i].cuda()
-        self.fc5 = nn.Linear(512, 512)
         self.loss1 = torch.nn.L1Loss()
         self.loss2 = torch.nn.L1Loss()
         self.loss3 = torch.nn.L1Loss()
@@ -135,7 +101,7 @@ class SICNNNet(nn.Module):
 
     def forward(self, x, target):
         data = x
-        
+
         x = F.avg_pool2d(x, 4, 4)
         y1 = self.dense1(x)
         x = self.relude1(self.deconv1(y1))
@@ -145,10 +111,10 @@ class SICNNNet(nn.Module):
 
         x = self.prebasic4_1(x)
         y1 = self.prebasic4_2(x)
-        y1 = torch.cat((x, y1), 1)        
+        y1 = torch.cat((x, y1), 1)
         x = self.prebasic4_3(y1)
         x = torch.cat((x, y1), 1)
-        
+
         output1 = self.tanh(self.gen(x)) # output
         loss1 = self.loss1(output1, target)
         newdata = torch.cat((target, output1), 0)
@@ -183,9 +149,9 @@ class SICNNNet(nn.Module):
         return loss1
         # loss 3
 
-        
 
-        # return output1, 
+
+        # return output1,
 
     # def _initialize_weights(self):
         # init.orthogonal_(self.conv1.weight, init.calculate_gain('relu'))
@@ -199,6 +165,40 @@ class SICNNNet(nn.Module):
 class CNNHNet(nn.Module):
     def __init__(self, upscale_factor):
         super(CNNHNet, self).__init__()
+        self.batchsize = batchsize
+        self.dense1 = DenseBlock(3)
+        self.deconv1 = nn.ConvTranspose2d(256, 256, (2,2), (2,2), padding=0) # ?
+        self.relude1 = nn.PReLU()
+
+        self.dense2 = DenseBlock(256)
+        self.deconv2 = nn.ConvTranspose2d(256, 256, (2,2), (2,2), (0,0)) # ?
+        self.relude2 = nn.PReLU()
+
+        self.dense3 = DenseBlock(256)
+        self.deconv3 = nn.ConvTranspose2d(256, 256, (5,5), (2,2), (2,2))
+        self.relude3 = nn.PReLU()
+        self.prebasic4_1 = BasicBlock(256, 64)
+        self.prebasic4_2 = BasicBlock(64, 32)
+        self.prebasic4_3 = BasicBlock(96, 32)
+        self.gen = nn.Conv2d(128, 3, (5,5), (1,1), padding=2)
+        self.tanh = nn.Tanh()
+        self.basic1a = BasicBlock(3, 32)
+        self.basic1b = BasicBlock(32, 64)
+        self.res1 = ResBlock(64, 64)
+        self.basic2 = BasicBlock(64, 128)
+        self.res2 = ResBlock(128, 128)
+        self.res3 = ResBlock(128, 128)
+        self.basic3 = BasicBlock(128, 256)
+        self.reslayer1 = []
+        for i in range(5):
+            self.reslayer1.append(ResBlock(256, 256))
+            self.reslayer1[i].cuda()
+        self.basic4 = BasicBlock(256, 512)
+        self.reslayer2 = []
+        for i in range(3):
+            self.reslayer2.append(ResBlock(512, 512))
+            self.reslayer2[i].cuda()
+        self.fc5 = nn.Linear(512, 512)
 
 
 
