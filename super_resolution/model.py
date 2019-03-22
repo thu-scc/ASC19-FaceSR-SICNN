@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
 
+import net_sphere
+
 class Net(nn.Module):
     def __init__(self, upscale_factor):
         super(Net, self).__init__()
@@ -74,6 +76,7 @@ class DenseBlock(nn.Module):
         self.basic5 = BasicBlock(160, 32)
         self.basic6 = BasicBlock(192, 32)
         self.basic7 = BasicBlock(224, 32)
+
     def forward(self, x):
         x = self.basic1(x)
         y1 = self.basic2(x)
@@ -92,29 +95,30 @@ class DenseBlock(nn.Module):
 
 
 class SICNNNet(nn.Module):
-    def __init__(self, upscale_factor, batch_size):
+    def __init__(self, upscale_factor, batch_size, classnum):
         super(SICNNNet, self).__init__()
         # self.loss1 = torch.nn.L1Loss()
         # self.loss2 = torch.nn.L1Loss()
         # self.loss3 = torch.nn.L1Loss()
         # self._initialize_weights()
         self.cnnh = CNNHNet(upscale_factor, batch_size)
-        self.cnnr = CNNRNet(upscale_factor, batch_size)
+        self.cnnr = CNNRNet(upscale_factor, batch_size, classnum)
 
-    def forward(self, x, target):
-        data = x
+    def forward(self, input, target):
+        SR_data = cnnh(input)
+        newdata = torch.cat((input, SRdata), 0)
+        # newlabel = torch.cat((target, target), 0)
+        SI_feature, SI_score = cnnr(newdata)
+        SI_feature = torch.norm(SI_feature)
+        SI_feature_HR = SI_feature[0:batchsize, :]
+        SI_feature_SR = SI_feature[batchsize:, :]
 
-        loss1 = self.loss1(output1, target)
-        newdata = torch.cat((target, output1), 0)
-        newlabel = torch.cat((target, target), 0)
+        # loss1 = self.loss1(output1, target)
 
-        # x = torch.norm(self.fc5(x))
-        # fc5_1 = x[0:batchsize, :]
-        # fc5_2 = x[batchsize:, :]
         # loss3 = self.loss3(fc5_1, fc5_2)
 
         # return loss1 + loss2
-        return loss1
+        return SR_data, SI_feature_HR, SI_feature_SR, SI_score
         # loss 3
 
 
@@ -129,8 +133,9 @@ class SICNNNet(nn.Module):
 
 
 class CNNRNet(nn.Module):
-    def __init__(self, upscale_factor, batch_size):
+    def __init__(self, upscale_factor, batch_size, classnum):
         super(CHHRNet, self).__init__()
+        self.classnum = classnum
         self.basic1a = BasicBlock(3, 32)
         self.basic1b = BasicBlock(32, 64)
         self.res1 = ResBlock(64, 64)
@@ -148,6 +153,7 @@ class CNNRNet(nn.Module):
             self.reslayer2.append(ResBlock(512, 512))
             self.reslayer2[i].cuda()
         self.fc5 = nn.Linear(512, 512)
+        self.fc6 = net_sphere.AngleLinear(512, self.classnum)
 
     def forward(self, input):
         x = self.basic1a(input)
@@ -166,10 +172,17 @@ class CNNRNet(nn.Module):
         y1 = F.max_pool2d(x, 2, 2)
         for i in range(3):
             x = self.reslayer2[i](x)
-        fea1 = x[0:self.batchsize, :]
-        fea2 = x[self.batchsize :, :]
 
-        return fea1, fea2
+        x = self.fc5(x)
+        output = self.fc6(x)
+        return x, output
+        # fea1 = x[0:self.batchsize, :]
+        # fea2 = x[self.batchsize :, :]
+        #
+        # x = self.fc5(x)
+        #
+        #
+        # return fea1, fea2
         # loss2
         # loss2 = self.loss2(fea1, fea2.detach())
 
