@@ -23,6 +23,8 @@ parser.add_argument('--lr', type=float, default=0.01, help='Learning Rate. Defau
 parser.add_argument('--cuda', action='store_true', help='use cuda?')
 parser.add_argument('--threads', type=int, default=4, help='number of threads for data loader to use')
 parser.add_argument('--seed', type=int, default=123, help='random seed to use. Default=123')
+
+parser.add_argument('--alpha', type=float, default=0.1, help='alpha to combine LSR and LSI in the paper Algorithm 1')
 opt = parser.parse_args()
 
 print(opt)
@@ -52,7 +54,7 @@ for param in judgenet.parameters():
 # judgenet.train()
 pjnet = judgenet.cuda()
 # pjnet = nn.DataParallel(judgenet).cuda()
-    
+
 def pjnet_loss_fn(output, target, batchsize):
     newimg = torch.cat((output, target), 0)
     res = pjnet(newimg)
@@ -64,20 +66,39 @@ def pjnet_loss_fn(output, target, batchsize):
 
 
 
-optimizer = optim.Adam(model.parameters(), lr=opt.lr)
+optimizer_CNNR = optim.Adam(model.cnnr.parameters(), lr=opt.lr)
+optimizer_CNNH = optim.Adam(model.cnnh.parameters(), lr=opt.lr)
+EuclideanLoss = nn.MSELoss()
+AngleLoss = net_sphere.AngleLoss()
 
 
 def train(epoch):
     epoch_loss = 0
     for iteration, batch in enumerate(training_data_loader, 100):
         input, target = batch[0].to(device), batch[1].to(device)
-        optimizer.zero_grad()
+        newlabel = torch.cat((target, target), 0)
+
+        optimizer_CNNR.zero_grad()
+        optimizer_CNNH.zero_grad()
         # print(input.shape)
-        output = model(target, target)
+        SR_data, SI_feature_HR, SI_feature_SR, SI_score = model(input, target)
+
+        #CNNR
+        LFR = AngleLoss(SI_score, newlabel)
+        LFR.backward()
+        optimizer_CNNR.step()
+
+        #CNNH
+        LSR = EuclideanLoss(SR_data, input)
+        LSI = EuclideanLoss(SI_feature_HR, SI_feature_SR)
+        L = LSR + args.alpha * LSI
+        L.backward()
+        optimizer_CNNH.step()
+
         # loss = pjnet_loss_fn(output, target, opt.batchSize)
-        epoch_loss += output.item()
-        output.backward()
-        optimizer.step()
+        # epoch_loss += output.item()
+        # output.backward()
+        # optimizer.step()
 
         print("===> Epoch[{}]({}/{}): Loss: {:.4f}".format(epoch, iteration, len(training_data_loader), output.item()))
 

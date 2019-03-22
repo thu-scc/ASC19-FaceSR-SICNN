@@ -121,7 +121,7 @@ def train(epoch,args):
         correct += predicted.eq(targets.data).cpu().sum()
 
         printoneline(dt(),'Te=%d Loss=%.4f | AccT=%.4f%% (%d/%d) %.4f %.2f %d'
-            % (epoch,train_loss/(batch_idx+1), 100.0*correct/total, correct, total, 
+            % (epoch,train_loss/(batch_idx+1), 100.0*correct/total, correct, total,
             lossd, criterion.lamb, criterion.it))
         batch_idx += 1
     print('')
@@ -143,4 +143,3 @@ for epoch in range(0, 20):
     save_model(net, '{}_{}.pth'.format(args.net,epoch))
 
 print('finish: time={}\n'.format(dt()))
-

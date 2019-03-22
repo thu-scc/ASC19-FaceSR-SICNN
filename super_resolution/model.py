@@ -49,7 +49,6 @@ class BasicBlock(nn.Module):
 
 
 class ResBlock(nn.Module):
-
     def __init__(self, ins, outs):
         super(ResBlock, self).__init__()
         self.basic1 = BasicBlock(ins,ins)
