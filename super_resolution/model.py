@@ -106,7 +106,7 @@ class SICNNNet(nn.Module):
     """
         consist of CNNHNet and CNNRNet
     """
-    def __init__(self, upscale_factor, batch_size, class_num):
+    def __init__(self, upscale_factor, batch_size, class_num=10574):
         super(SICNNNet, self).__init__()
         # self.loss1 = torch.nn.L1Loss()
         # self.loss2 = torch.nn.L1Loss()
@@ -125,12 +125,13 @@ class SICNNNet(nn.Module):
             SI_embed_HR: super-indentical embedding for HR image
             SI_embed_SR: super-indentical embedding for SR image
             SI_angular: AngularLinear output(sse net_sphere.AngularLinear)
+            fea1, fea2: for loss2(see sicnn.prototxt line 2400)
         """
         LR_data = F.avg_pool2d(input, 4, 4)
         SR_data = cnnh(LR_data)
         newdata = torch.cat((input, SRdata), 0) #cat HR image and SR image together to train CNNR
         # newlabel = torch.cat((target, target), 0)
-        SI_embed, SI_angular = cnnr(newdata)
+        SI_embed, SI_angular, fea1, fea2 = cnnr(newdata)
         SI_embed = torch.norm(SI_feature)
         SI_embed_HR = SI_embed[0:batchsize, :]
         SI_embed_SR = SI_embed[batchsize:, :]
@@ -138,10 +139,9 @@ class SICNNNet(nn.Module):
         # loss1 = self.loss1(output1, target)
 
         # loss3 = self.loss3(fc5_1, fc5_2)
-
         # return loss1 + loss2
-        return SR_data, SI_embed_HR, embed_SR, SI_angular
-        # loss 3
+
+        return SR_data, SI_embed_HR, embed_SR, SI_angular, fea1, fea2
 
         # return output1,
 
@@ -157,9 +157,9 @@ class CNNRNet(nn.Module):
         face recognition network(CNNR).
         similar to net_sphere.sphere20a, but a little different in network strucure
     """
-    def __init__(self, upscale_factor, batch_size, classnum):
+    def __init__(self, upscale_factor, batch_size, class_num):
         super(CHHRNet, self).__init__()
-        self.classnum = classnum
+        self.class_num = class_num
         self.basic1a = BasicBlock(3, 32)
         self.basic1b = BasicBlock(32, 64)
         self.res1 = ResBlock(64, 64)
@@ -177,7 +177,7 @@ class CNNRNet(nn.Module):
             self.reslayer2.append(ResBlock(512, 512))
             self.reslayer2[i].cuda()
         self.fc5 = nn.Linear(512, 512)
-        self.fc6 = net_sphere.AngleLinear(512, self.classnum)
+        self.fc6 = net_sphere.AngleLinear(512, self.class_num)
 
     def forward(self, input):
         """
@@ -186,6 +186,7 @@ class CNNRNet(nn.Module):
         Returns:
             SI_embed: super-indentical embedding for HR and SR image
             SI_angular: AngularLinear output(see net_sphere.AngularLinear)
+            fea1, fea2: for loss2(see sicnn.prototxt line 2400)
         """
         x = self.basic1a(input)
         x = self.basic1b(x)
@@ -204,13 +205,15 @@ class CNNRNet(nn.Module):
         for i in range(3):
             x = self.reslayer2[i](x)
 
+        # loss2                         #NOTE: don't know what's loss2's function
+        # loss2 = self.loss2(fea1, fea2.detach())
+        fea1 = x[0:self.batchsize, :]
+        fea2 = x[self.batchsize :, :]
+
         SI_embed = self.fc5(x)
         SI_angular = self.fc6(SI_embed)
-        return SI_embed, SI_angular
-        # loss2                         #NOTE: don't know what's loss2's function
-        # fea1 = x[0:self.batchsize, :]
-        # fea2 = x[self.batchsize :, :]
-        # loss2 = self.loss2(fea1, fea2.detach())
+        return SI_embed, SI_angular, fea1, fea2
+
 
 
 class CNNHNet(nn.Module):

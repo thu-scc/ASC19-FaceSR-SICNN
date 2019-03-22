@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from model import Net,SICNNNet
+from model import Net, SICNNNet
 from data import get_training_set, get_test_set
 
 # ASC loss
@@ -24,7 +24,7 @@ parser.add_argument('--cuda', action='store_true', help='use cuda?')
 parser.add_argument('--threads', type=int, default=4, help='number of threads for data loader to use')
 parser.add_argument('--seed', type=int, default=123, help='random seed to use. Default=123')
 
-parser.add_argument('--alpha', type=float, default=0.1, help='alpha to combine LSR and LSI in the paper Algorithm 1')
+parser.add_argument('--alpha', type=float, default=10.0, help='alpha to combine LSR and LSI in the paper Algorithm 1')
 opt = parser.parse_args()
 
 print(opt)
@@ -43,7 +43,7 @@ training_data_loader = DataLoader(dataset=train_set, num_workers=opt.threads, ba
 testing_data_loader = DataLoader(dataset=test_set, num_workers=opt.threads, batch_size=opt.testBatchSize, shuffle=False, drop_last=True)
 
 print('===> Building model')
-model = SICNNNet(upscale_factor=opt.upscale_factor, batchsize=opt.batchSize).to(device)
+model = SICNNNet(upscale_factor=opt.upscale_factor, batch_size=opt.batchSize).to(device)
 # criterion = nn.MSELoss()
 judgenet = getattr(net_sphere, 'sphere20a')()
 judgenet.load_state_dict(torch.load('sphere20a.pth'))
@@ -81,9 +81,10 @@ def train(epoch):
         optimizer_CNNR.zero_grad()
         optimizer_CNNH.zero_grad()
         # print(input.shape)
-        SR_data, SI_embed_HR, SI_embed_SR, SI_angular = model(input, target)
+        SR_data, SI_embed_HR, SI_embed_SR, SI_angular, fea1, fea2 = model(input, target)
 
         #CNNR
+        #loss2 = EuclideanLoss(fea1, fea2) #NOTE: confused about loss2
         LFR = AngleLoss(SI_angular, newlabel)
         LFR.backward()
         optimizer_CNNR.step()
@@ -91,7 +92,7 @@ def train(epoch):
         #CNNH
         LSR = EuclideanLoss(SR_data, input)
         LSI = EuclideanLoss(SI_embed_HR, SI_embed_SR)
-        L = LSR + args.alpha * LSI
+        L = LSR + opt.alpha * LSI
         L.backward()
         optimizer_CNNH.step()
 
