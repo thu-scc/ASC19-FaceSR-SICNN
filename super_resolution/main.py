@@ -76,21 +76,21 @@ def train(epoch):
     epoch_loss = 0
     for iteration, batch in enumerate(training_data_loader, 100):
         input, target = batch[0].to(device), batch[1].to(device)
-        newlabel = torch.cat((target, target), 0)
+        newlabel = torch.cat((target, target), 0) #new label
 
         optimizer_CNNR.zero_grad()
         optimizer_CNNH.zero_grad()
         # print(input.shape)
-        SR_data, SI_feature_HR, SI_feature_SR, SI_score = model(input, target)
+        SR_data, SI_embed_HR, SI_embed_SR, SI_angular = model(input, target)
 
         #CNNR
-        LFR = AngleLoss(SI_score, newlabel)
+        LFR = AngleLoss(SI_angular, newlabel)
         LFR.backward()
         optimizer_CNNR.step()
 
         #CNNH
         LSR = EuclideanLoss(SR_data, input)
-        LSI = EuclideanLoss(SI_feature_HR, SI_feature_SR)
+        LSI = EuclideanLoss(SI_embed_HR, SI_embed_SR)
         L = LSR + args.alpha * LSI
         L.backward()
         optimizer_CNNH.step()

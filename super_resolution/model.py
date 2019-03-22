@@ -32,9 +32,10 @@ class Net(nn.Module):
         init.orthogonal_(self.conv4.weight)
 
 
-
 class BasicBlock(nn.Module):
-
+    """
+        -> Conv -> PReLU ->
+    """
     def __init__(self, ins, outs):
         super(BasicBlock, self).__init__()
         self.conv1 = nn.Conv2d(ins, outs, (3,3), (1,1), padding=1) # different weight
@@ -46,9 +47,12 @@ class BasicBlock(nn.Module):
         return out
 
 
-
-
 class ResBlock(nn.Module):
+    """
+        -> -> Conv -> PReLU -> Conv -> PReLU -> ADD ->
+           |                                     |
+           +-------------------------------------+
+    """
     def __init__(self, ins, outs):
         super(ResBlock, self).__init__()
         self.basic1 = BasicBlock(ins,ins)
@@ -66,6 +70,11 @@ class ResBlock(nn.Module):
         return out
 
 class DenseBlock(nn.Module):
+    """
+    -> Conv -> PReLU -> [-> Conv -> PReLU -> CAT ->]*6 ->
+                         |                    |
+                         +--------------------+
+    """
     def __init__(self, ins):
         super(DenseBlock, self).__init__()
         self.basic1 = BasicBlock(ins, 64)
@@ -94,33 +103,45 @@ class DenseBlock(nn.Module):
 
 
 class SICNNNet(nn.Module):
-    def __init__(self, upscale_factor, batch_size, classnum):
+    """
+        consist of CNNHNet and CNNRNet
+    """
+    def __init__(self, upscale_factor, batch_size, class_num):
         super(SICNNNet, self).__init__()
         # self.loss1 = torch.nn.L1Loss()
         # self.loss2 = torch.nn.L1Loss()
         # self.loss3 = torch.nn.L1Loss()
         # self._initialize_weights()
         self.cnnh = CNNHNet(upscale_factor, batch_size)
-        self.cnnr = CNNRNet(upscale_factor, batch_size, classnum)
+        self.cnnr = CNNRNet(upscale_factor, batch_size, class_num)
 
     def forward(self, input, target):
-        SR_data = cnnh(input)
-        newdata = torch.cat((input, SRdata), 0)
+        """
+        Args:
+            input: HR image;
+            target: label of HR image in Face Recognition problem
+        Returns:
+            SR_data: SR image by CNNHNet
+            SI_embed_HR: super-indentical embedding for HR image
+            SI_embed_SR: super-indentical embedding for SR image
+            SI_angular: AngularLinear output(sse net_sphere.AngularLinear)
+        """
+        LR_data = F.avg_pool2d(input, 4, 4)
+        SR_data = cnnh(LR_data)
+        newdata = torch.cat((input, SRdata), 0) #cat HR image and SR image together to train CNNR
         # newlabel = torch.cat((target, target), 0)
-        SI_feature, SI_score = cnnr(newdata)
-        SI_feature = torch.norm(SI_feature)
-        SI_feature_HR = SI_feature[0:batchsize, :]
-        SI_feature_SR = SI_feature[batchsize:, :]
+        SI_embed, SI_angular = cnnr(newdata)
+        SI_embed = torch.norm(SI_feature)
+        SI_embed_HR = SI_embed[0:batchsize, :]
+        SI_embed_SR = SI_embed[batchsize:, :]
 
         # loss1 = self.loss1(output1, target)
 
         # loss3 = self.loss3(fc5_1, fc5_2)
 
         # return loss1 + loss2
-        return SR_data, SI_feature_HR, SI_feature_SR, SI_score
+        return SR_data, SI_embed_HR, embed_SR, SI_angular
         # loss 3
-
-
 
         # return output1,
 
@@ -132,6 +153,10 @@ class SICNNNet(nn.Module):
 
 
 class CNNRNet(nn.Module):
+    """
+        face recognition network(CNNR).
+        similar to net_sphere.sphere20a, but a little different in network strucure
+    """
     def __init__(self, upscale_factor, batch_size, classnum):
         super(CHHRNet, self).__init__()
         self.classnum = classnum
@@ -155,6 +180,13 @@ class CNNRNet(nn.Module):
         self.fc6 = net_sphere.AngleLinear(512, self.classnum)
 
     def forward(self, input):
+        """
+        Args:
+            input: SR image
+        Returns:
+            SI_embed: super-indentical embedding for HR and SR image
+            SI_angular: AngularLinear output(see net_sphere.AngularLinear)
+        """
         x = self.basic1a(input)
         x = self.basic1b(x)
         y1 = F.max_pool2d(x, 2, 2)
@@ -172,24 +204,22 @@ class CNNRNet(nn.Module):
         for i in range(3):
             x = self.reslayer2[i](x)
 
-        x = self.fc5(x)
-        output = self.fc6(x)
-        return x, output
+        SI_embed = self.fc5(x)
+        SI_angular = self.fc6(SI_embed)
+        return SI_embed, SI_angular
+        # loss2                         #NOTE: don't know what's loss2's function
         # fea1 = x[0:self.batchsize, :]
         # fea2 = x[self.batchsize :, :]
-        #
-        # x = self.fc5(x)
-        #
-        #
-        # return fea1, fea2
-        # loss2
         # loss2 = self.loss2(fea1, fea2.detach())
 
 
 class CNNHNet(nn.Module):
-    def __init__(self, upscale_factor):
+    """
+    hallucination network. convert LR images to an SR images
+    """
+    def __init__(self, upscale_factor, batch_size):
         super(CNNHNet, self).__init__()
-        self.batchsize = batchsize
+        self.batchsize = batch_size
         self.dense1 = DenseBlock(3)
         self.deconv1 = nn.ConvTranspose2d(256, 256, (2,2), (2,2), padding=0) # ?
         self.relude1 = nn.PReLU()
@@ -207,11 +237,16 @@ class CNNHNet(nn.Module):
         self.gen = nn.Conv2d(128, 3, (5,5), (1,1), padding=2)
         self.tanh = nn.Tanh()
 
-        self._initialize_weights()
+        # self._initialize_weights()
 
     def forward(self, input):
-        x = F.avg_pool2d(input, 4, 4)
-        y1 = self.dense1(x)
+        """
+         Args:
+            input: LR images
+         Returns:
+            output: HR images
+        """
+        y1 = self.dense1(input)
         x = self.relude1(self.deconv1(y1))
         y1 = self.dense2(x)
         x = self.relude2(self.deconv2(y1))
@@ -222,7 +257,7 @@ class CNNHNet(nn.Module):
         x = self.prebasic4_3(y1)
         x = torch.cat((x, y1), 1)
 
-        output = self.tanh(self.gen(x)) # output
+        output = self.tanh(self.gen(x))
         # x = self.relu(self.conv1(x))
         # x = self.relu(self.conv2(x))
         # x = self.relu(self.conv3(x))
