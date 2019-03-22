@@ -1,0 +1,16 @@
+net: "cnnh.prototxt"
+iter_size: 1
+base_lr: 0.00025
+lr_policy: "step"
+gamma: 0.85
+average_loss: 100
+stepsize: 4000
+max_iter: 200000
+display: 50
+#momentum: 0.0
+snapshot: 5000
+snapshot_prefix: "face_snapshot/cnnh"
+solver_mode: GPU
+type: "RMSProp"
+rms_decay:0.99
+weight_decay: 0.0002

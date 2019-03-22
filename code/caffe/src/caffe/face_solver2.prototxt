@@ -1,0 +1,24 @@
+net: "face_example/sr1.prototxt"
+base_lr: 0.001
+#lr_policy: "multistep"
+lr_policy: "step"
+gamma: 0.1
+#stepvalue: 20000
+#stepvalue: 30000
+#stepvalue: 35000
+stepsize: 15000
+max_iter: 60000
+
+
+display: 1
+#momentum: 0.9
+
+weight_decay: 0.0005
+snapshot: 1000
+snapshot_prefix: "face_example/face_snapshot/face_train_test"
+solver_mode: GPU
+#type: "SGD"
+
+type: "RMSProp"
+rms_decay:0.99
+gan_solver: true

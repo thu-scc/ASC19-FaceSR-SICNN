@@ -1,0 +1,6 @@
+./caffe/src/caffe/solver.cpp
+L230 and L240 to set CNNH ended in which layers (used in domain-intergrated training). It is depended on the network structure.
+L280-310 to display the layer names
+
+prototxt是sicnn和单独cnnh的样例。cnnr和预处理则请参考sphere face的github。
+data有点大，需要的话请email我再传过去。

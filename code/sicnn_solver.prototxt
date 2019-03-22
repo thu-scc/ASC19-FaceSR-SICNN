@@ -1,0 +1,14 @@
+net: "sicnn.prototxt"
+base_lr: 0.01
+lr_policy: "step"
+gamma: 0.8
+stepsize: 6000
+max_iter: 60000
+average_loss: 100
+
+display: 20
+momentum: 0.9
+weight_decay: 0.00025
+snapshot: 10000
+snapshot_prefix: "face_snapshot/sicnn"
+
