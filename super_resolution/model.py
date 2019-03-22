@@ -92,7 +92,7 @@ class DenseBlock(nn.Module):
 
 
 class SICNNNet(nn.Module):
-    def __init__(self, upscale_factor, batchsize):
+    def __init__(self, upscale_factor, batch_size):
         super(SICNNNet, self).__init__()
         self.loss1 = torch.nn.L1Loss()
         self.loss2 = torch.nn.L1Loss()
@@ -102,20 +102,6 @@ class SICNNNet(nn.Module):
     def forward(self, x, target):
         data = x
 
-        x = F.avg_pool2d(x, 4, 4)
-        y1 = self.dense1(x)
-        x = self.relude1(self.deconv1(y1))
-        y1 = self.dense2(x)
-        x = self.relude2(self.deconv2(y1))
-
-
-        x = self.prebasic4_1(x)
-        y1 = self.prebasic4_2(x)
-        y1 = torch.cat((x, y1), 1)
-        x = self.prebasic4_3(y1)
-        x = torch.cat((x, y1), 1)
-
-        output1 = self.tanh(self.gen(x)) # output
         loss1 = self.loss1(output1, target)
         newdata = torch.cat((target, output1), 0)
         newlabel = torch.cat((target, target), 0)
@@ -160,6 +146,29 @@ class SICNNNet(nn.Module):
         # init.orthogonal_(self.conv4.weight)
 
 
+class CNNRNet(nn.Module):
+    def __init__(self, upscale_factor, batch_size):
+        super(CHHRNet, self).__init__()
+        self.basic1a = BasicBlock(3, 32)
+        self.basic1b = BasicBlock(32, 64)
+        self.res1 = ResBlock(64, 64)
+        self.basic2 = BasicBlock(64, 128)
+        self.res2 = ResBlock(128, 128)
+        self.res3 = ResBlock(128, 128)
+        self.basic3 = BasicBlock(128, 256)
+        self.reslayer1 = []
+        for i in range(5):
+            self.reslayer1.append(ResBlock(256, 256))
+            self.reslayer1[i].cuda()
+        self.basic4 = BasicBlock(256, 512)
+        self.reslayer2 = []
+        for i in range(3):
+            self.reslayer2.append(ResBlock(512, 512))
+            self.reslayer2[i].cuda()
+        self.fc5 = nn.Linear(512, 512)
+
+    def forward(self, input):
+
 
 
 class CNNHNet(nn.Module):
@@ -182,34 +191,28 @@ class CNNHNet(nn.Module):
         self.prebasic4_3 = BasicBlock(96, 32)
         self.gen = nn.Conv2d(128, 3, (5,5), (1,1), padding=2)
         self.tanh = nn.Tanh()
-        self.basic1a = BasicBlock(3, 32)
-        self.basic1b = BasicBlock(32, 64)
-        self.res1 = ResBlock(64, 64)
-        self.basic2 = BasicBlock(64, 128)
-        self.res2 = ResBlock(128, 128)
-        self.res3 = ResBlock(128, 128)
-        self.basic3 = BasicBlock(128, 256)
-        self.reslayer1 = []
-        for i in range(5):
-            self.reslayer1.append(ResBlock(256, 256))
-            self.reslayer1[i].cuda()
-        self.basic4 = BasicBlock(256, 512)
-        self.reslayer2 = []
-        for i in range(3):
-            self.reslayer2.append(ResBlock(512, 512))
-            self.reslayer2[i].cuda()
-        self.fc5 = nn.Linear(512, 512)
-
-
 
         self._initialize_weights()
 
-    def forward(self, x):
+    def forward(self, input):
+        x = F.avg_pool2d(input, 4, 4)
+        y1 = self.dense1(x)
+        x = self.relude1(self.deconv1(y1))
+        y1 = self.dense2(x)
+        x = self.relude2(self.deconv2(y1))
+
+        x = self.prebasic4_1(x)
+        y1 = self.prebasic4_2(x)
+        y1 = torch.cat((x, y1), 1)
+        x = self.prebasic4_3(y1)
+        x = torch.cat((x, y1), 1)
+
+        output = self.tanh(self.gen(x)) # output
         # x = self.relu(self.conv1(x))
         # x = self.relu(self.conv2(x))
         # x = self.relu(self.conv3(x))
         # x = self.pixel_shuffle(self.conv4(x))
-        return x
+        return output
 
     def _initialize_weights(self):
         return null
