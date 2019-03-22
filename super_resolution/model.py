@@ -94,10 +94,12 @@ class DenseBlock(nn.Module):
 class SICNNNet(nn.Module):
     def __init__(self, upscale_factor, batch_size):
         super(SICNNNet, self).__init__()
-        self.loss1 = torch.nn.L1Loss()
-        self.loss2 = torch.nn.L1Loss()
-        self.loss3 = torch.nn.L1Loss()
+        # self.loss1 = torch.nn.L1Loss()
+        # self.loss2 = torch.nn.L1Loss()
+        # self.loss3 = torch.nn.L1Loss()
         # self._initialize_weights()
+        self.cnnh = CNNHNet(upscale_factor, batch_size)
+        self.cnnr = CNNRNet(upscale_factor, batch_size)
 
     def forward(self, x, target):
         data = x
@@ -105,26 +107,6 @@ class SICNNNet(nn.Module):
         loss1 = self.loss1(output1, target)
         newdata = torch.cat((target, output1), 0)
         newlabel = torch.cat((target, target), 0)
-        x = self.basic1a(newdata)
-        x = self.basic1b(x)
-        y1 = F.max_pool2d(x,2,2)
-        x = self.res1(y1)
-        x = self.basic2(x)
-        y1 = F.max_pool2d(x,2,2)
-        x = self.res2(y1)
-        x = self.res3(x)
-        x = self.basic3(x)
-        y1 = F.max_pool2d(x,2,2)
-        for i in range(5):
-            x = self.reslayer1[i](x)
-        x = self.basic4(x)
-        y1 = F.max_pool2d(x,2,2)
-        for i in range(3):
-            x = self.reslayer2[i](x)
-        fea1 = x[0:self.batchsize, :]
-        fea2 = x[self.batchsize :, :]
-        # loss2
-        loss2 = self.loss2(fea1, fea2.detach())
 
         # x = torch.norm(self.fc5(x))
         # fc5_1 = x[0:batchsize, :]
@@ -168,7 +150,28 @@ class CNNRNet(nn.Module):
         self.fc5 = nn.Linear(512, 512)
 
     def forward(self, input):
+        x = self.basic1a(input)
+        x = self.basic1b(x)
+        y1 = F.max_pool2d(x, 2, 2)
+        x = self.res1(y1)
+        x = self.basic2(x)
+        y1 = F.max_pool2d(x, 2, 2)
+        x = self.res2(y1)
+        x = self.res3(x)
+        x = self.basic3(x)
+        y1 = F.max_pool2d(x, 2, 2)
+        for i in range(5):
+            x = self.reslayer1[i](x)
+        x = self.basic4(x)
+        y1 = F.max_pool2d(x, 2, 2)
+        for i in range(3):
+            x = self.reslayer2[i](x)
+        fea1 = x[0:self.batchsize, :]
+        fea2 = x[self.batchsize :, :]
 
+        return fea1, fea2
+        # loss2
+        # loss2 = self.loss2(fea1, fea2.detach())
 
 
 class CNNHNet(nn.Module):
