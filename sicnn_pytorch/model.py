@@ -130,6 +130,8 @@ class SICNNNet(nn.Module):
         # LR_data = F.avg_pool2d(input, 4, 4)
 
         SR_data = self.cnnh(input)
+        return SR_data
+        '''
         newdata = torch.cat((target, SR_data), 0) #cat HR image and SR image together to train CNNR
         # newlabel = torch.cat((target, target), 0)
         SI_embed, SI_angular, fea1, fea2 = self.cnnr(newdata)
@@ -140,12 +142,14 @@ class SICNNNet(nn.Module):
         SI_embed_HR = SI_embed[0:self.batchsize, :]
         SI_embed_SR = SI_embed[self.batchsize:, :]
 
+
         # loss1 = self.loss1(output1, target)
 
         # loss3 = self.loss3(fc5_1, fc5_2)
         # return loss1 + loss2
 
         return SR_data, SI_embed_HR, SI_embed_SR, SI_angular, fea1, fea2
+        '''
 
         # return output1,
 
@@ -182,7 +186,7 @@ class CNNRNet(nn.Module):
             self.reslayer2.append(ResBlock(512, 512))
             self.reslayer2[i].cuda()
         self.fc5 = nn.Linear(344064, 512)
-        self.fc6 = net_sphere.AngleLinear(512, self.class_num)
+        # self.fc6 = net_sphere.AngleLinear(512, self.class_num)
         # self.fc6 = nn.Linear(512, 512)
 
     def forward(self, input):
@@ -222,7 +226,8 @@ class CNNRNet(nn.Module):
         x = x.view(x.size(0), -1)
         SI_embed = self.fc5(x)
 
-        SI_angular = self.fc6(SI_embed)
+        # SI_angular = self.fc6(SI_embed)
+        SI_angular = 0
         return SI_embed, SI_angular, fea1, fea2
 
 

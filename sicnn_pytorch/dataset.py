@@ -10,7 +10,8 @@ def is_image_file(filename):
 
 
 def load_img(filepath):
-    img = Image.open(filepath).convert('YCbCr')
+    img = Image.open(filepath)
+    # print(type(img))
     # y, _, _ = img.split()
     return img
 
@@ -33,6 +34,12 @@ class DatasetFromFolder(data.Dataset):
         if self.target_transform:
             target = self.target_transform(target)
         # print(target.shape)
+
+        input = input.transpose(2, 0, 1).reshape((1, 3, 112, 96))
+        input = (input - 127.5) / 128.0
+
+        target = target.transpose(2, 0, 1).reshape((1, 3, 112, 96))
+        target = (target - 127.5) / 128.0
 
         return input, target
 

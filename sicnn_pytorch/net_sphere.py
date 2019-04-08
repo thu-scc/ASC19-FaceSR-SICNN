@@ -149,7 +149,7 @@ class sphere20a(nn.Module):
         self.relu4_3 = nn.PReLU(512)
 
         self.fc5 = nn.Linear(512*7*6,512)
-        # self.fc6 = AngleLinear(512,self.classnum)
+        self.fc6 = AngleLinear(512,self.classnum)
 
 
     def forward(self, x):
@@ -173,5 +173,5 @@ class sphere20a(nn.Module):
         x = self.fc5(x)
         if self.feature: return x
 
-        x = self.fc6(x)
+        # x = self.fc6(x)
         return x

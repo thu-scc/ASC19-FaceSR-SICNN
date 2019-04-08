@@ -19,7 +19,7 @@ parser.add_argument('--upscale_factor', type=int,default=4, help="super resoluti
 parser.add_argument('--batchSize', type=int, default=64, help='training batch size')
 parser.add_argument('--testBatchSize', type=int, default=64, help='testing batch size')# todo
 parser.add_argument('--nEpochs', type=int, default=20, help='number of epochs to train for')
-parser.add_argument('--lr', type=float, default=0.01, help='Learning Rate. Default=0.01')
+parser.add_argument('--lr', type=float, default=0.0001, help='Learning Rate. Default=0.01')
 parser.add_argument('--cuda', action='store_true', help='use cuda?')
 parser.add_argument('--judgeloss', type=float, default = 0.0, help='use cuda?')
 parser.add_argument('--threads', type=int, default=4, help='number of threads for data loader to use')
@@ -78,13 +78,16 @@ AngleLoss = net_sphere.AngleLoss()
 def train(epoch):
     epoch_loss = 0
     for iteration, batch in enumerate(training_data_loader, 100):
+        if iteration > 200:
+            break
         input, target = batch[0].to(device), batch[1].to(device)
         
 
         optimizer_CNNR.zero_grad()
         optimizer_CNNH.zero_grad()
 
-        SR_data, SI_embed_HR, SI_embed_SR, SI_angular, fea1, fea2 = model(input, target)
+        # SR_data, SI_embed_HR, SI_embed_SR, SI_angular, fea1, fea2 = model(input, target)
+        SR_data = model(input, target)
 
         #CNNR
         # loss2 = EuclideanLoss(fea1, fea2) #NOTE: confused about loss2
@@ -95,7 +98,12 @@ def train(epoch):
 
         #CNNH
         LSR = EuclideanLoss(SR_data, target)
-        LSI = EuclideanLoss(SI_embed_HR, SI_embed_SR.detach())
+        # LSI = EuclideanLoss(SI_embed_HR, SI_embed_SR.detach())
+        newimg = torch.cat((SR_data, target),0)
+        newimg = pjnet(newimg)
+        fea1 = newimg[0:opt.batchSize, :]
+        fea2 = newimg[opt.batchSize:, :]
+        LSI = EuclideanLoss(fea1, fea2.detach())
         L = LSR + opt.alpha * LSI
         if opt.judgeloss != 0.0:
             L += opt.judgeloss * pjnet_loss_fn(SR_data, target, opt.batchSize)
@@ -115,17 +123,19 @@ def train(epoch):
 def test():
     avg_psnr = 0
     with torch.no_grad():
+        cnt = 0
         for batch in testing_data_loader:
+            cnt += 1
             input, target = batch[0].to(device), batch[1].to(device)
 
 
             # loss_num = model(input, target)
-            SR_data, SI_embed_HR, SI_embed_SR, SI_angular, fea1, fea2 = model(input, target)
+            SR_data = model(input, target)
         
             pj_loss = pjnet_loss_fn(SR_data, target, opt.batchSize)
             avg_loss = 0.0
             avg_loss += pj_loss
-    print("===> Avg. IS: {:.4f} ".format(1 - avg_loss / len(testing_data_loader)))
+    print("===> Avg. IS: {:.4f} ".format(avg_loss / cnt))
 
 
 def checkpoint(epoch):

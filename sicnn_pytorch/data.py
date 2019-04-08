@@ -56,13 +56,13 @@ def normal_transform():
 
 
 def get_training_set(upscale_factor):
-    HR_train_dir = "/home/huangkz/jimmy_cliff/newimg"
-    LR_train_dir = "/home/huangkz/jimmy_cliff/LR"
+    HR_train_dir = "/home/zhaocg/celeba/dataset/train_HR"
+    LR_train_dir = "/home/zhaocg/celeba/dataset/train_LR"
     return TrainDatasetFromFolder(HR_train_dir,LR_train_dir, device_transform=normal_transform())
 
 
 def get_test_set(upscale_factor):
-    HR_train_dir = "/home/huangkz/jimmy_cliff/validnewimg"
-    LR_train_dir = "/home/huangkz/jimmy_cliff/validLR"
+    HR_train_dir = "/home/zhaocg/celeba/dataset/valid_HR"
+    LR_train_dir = "/home/zhaocg/celeba/dataset/valid_LR"
 
     return TrainDatasetFromFolder(HR_train_dir,LR_train_dir, device_transform=normal_transform())
