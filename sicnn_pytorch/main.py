@@ -6,145 +6,89 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from model import Net, SICNNNet
+from model import CNNHNet
 from data import get_training_set, get_test_set
 
-# ASC loss
 import net_sphere
-
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch Super Res Example')
-parser.add_argument('--upscale_factor', type=int,default=4, help="super resolution upscale factor")
-parser.add_argument('--batchSize', type=int, default=64, help='training batch size')
-parser.add_argument('--testBatchSize', type=int, default=64, help='testing batch size')# todo
-parser.add_argument('--nEpochs', type=int, default=20, help='number of epochs to train for')
+parser.add_argument('--upscale_factor', type=int, default=4, help="super resolution upscale factor")
+parser.add_argument('--bs', type=int, default=64, help='training batch size')
+parser.add_argument('--test_bs', type=int, default=64, help='testing batch size')# todo
+parser.add_argument('--epochs', type=int, default=20, help='number of epochs to train for')
 parser.add_argument('--lr', type=float, default=0.0001, help='Learning Rate. Default=0.01')
 parser.add_argument('--cuda', action='store_true', help='use cuda?')
-parser.add_argument('--judgeloss', type=float, default = 0.0, help='use cuda?')
 parser.add_argument('--threads', type=int, default=4, help='number of threads for data loader to use')
 parser.add_argument('--seed', type=int, default=123, help='random seed to use. Default=123')
+parser.add_argument('--alpha', type=float, default=10.0, help='alpha to combine LSR and LSI in the paper algorithm 1')
+parser.add_argument('--train', type=str, default='/home/zhaocg/celeba/dataset', help='path to training dataset')
+options = parser.parse_args()
 
+print(options)
 
-parser.add_argument('--alpha', type=float, default=10.0, help='alpha to combine LSR and LSI in the paper Algorithm 1')
-opt = parser.parse_args()
+if options.cuda and not torch.cuda.is_available():
+    raise Exception('No GPU found, please run without --cuda')
 
-print(opt)
+torch.manual_seed(options.seed)
+device = torch.device('cuda' if options.cuda else 'cpu')
 
-if opt.cuda and not torch.cuda.is_available():
-    raise Exception("No GPU found, please run without --cuda")
+print('[!] Loading datasets ... ', end='', flush=True)
+train_set = get_training_set(options.train)
+test_set = get_test_set(options.train)
+train_data_loader = DataLoader(dataset=train_set, num_workers=options.threads, batch_size=options.bs, shuffle=True, drop_last=True)
+test_data_loader = DataLoader(dataset=test_set, num_workers=options.threads, batch_size=options.test_bs, shuffle=False, drop_last=True)
+print('done !', flush=True)
 
-torch.manual_seed(opt.seed)
+print('[!] Building model ... ', end='', flush=True)
+cnn_h = CNNHNet(upscale_factor=options.upscale_factor, batch_size=options.bs).to(device)
+cnn_r = getattr(net_sphere, 'sphere20a')()
+cnn_r.load_state_dict(torch.load('sphere20a.pth'))
+cnn_r.feature = True
 
-device = torch.device("cuda" if opt.cuda else "cpu")
-
-print('===> Loading datasets')
-train_set = get_training_set(opt.upscale_factor)
-test_set = get_test_set(opt.upscale_factor)
-training_data_loader = DataLoader(dataset=train_set, num_workers=opt.threads, batch_size=opt.batchSize, shuffle=True, drop_last=True)
-testing_data_loader = DataLoader(dataset=test_set, num_workers=opt.threads, batch_size=opt.testBatchSize, shuffle=False, drop_last=True)
-
-print('===> Building model')
-model = SICNNNet(upscale_factor=opt.upscale_factor, batch_size=opt.batchSize).to(device)
-# print(model.cpu())
-# criterion = nn.MSELoss()
-judgenet = getattr(net_sphere, 'sphere20a')()
-judgenet.load_state_dict(torch.load('sphere20a.pth'))
-judgenet.feature = True
-
-for param in judgenet.parameters():
+for param in cnn_r.parameters():
     param.requires_grad = False
-# judgenet.train()
-pjnet = judgenet.cuda()
-# pjnet = nn.DataParallel(judgenet).cuda()
+cnn_r = cnn_r.cuda()
+print('done !', flush=True)
 
-def pjnet_loss_fn(output, target, batchsize):
-    newimg = torch.cat((output, target), 0)
-    res = pjnet(newimg)
-    cosdistance = res[0].dot(res[1])/(res[0].norm()*res[1].norm())
-    for i in range(1, batchsize):
-        cosdistance += res[i].dot(res[i+batchsize])/(res[i].norm()*res[i + batchsize].norm())
-    return 1 - cosdistance/batchsize
-# criterion = pjnet_loss_fn
-
-
-
-optimizer_CNNR = optim.Adam(model.cnnr.parameters(), lr=opt.lr)
-optimizer_CNNH = optim.Adam(model.cnnh.parameters(), lr=opt.lr)
+optimizer_cnn_h = optim.Adam(model.cnnh.parameters(), lr=opt.lr)
 EuclideanLoss = nn.MSELoss()
 AngleLoss = net_sphere.AngleLoss()
 
-
 def train(epoch):
-    epoch_loss = 0
-    for iteration, batch in enumerate(training_data_loader, 100):
+    print('[!] Training epoch ' + str(epoch) + ' ...')
+    epoch_loss = 0; bs = options.bs
+    for iteration, batch in enumerate(train_data_loader):
         if iteration > 200:
             break
         input, target = batch[0].to(device), batch[1].to(device)
-        
+        optimizer_cnn_h.zero_grad()
 
-        optimizer_CNNR.zero_grad()
-        optimizer_CNNH.zero_grad()
+        sr_img = cnn_h(input)
+        l_sr = EuclideanLoss(sr_img, target)
 
-        # SR_data, SI_embed_HR, SI_embed_SR, SI_angular, fea1, fea2 = model(input, target)
-        SR_data = model(input, target)
+        features = cnn_r(torch.cat((sr_img, target), 0))
+        f1 = features[0:bs, :]; f2 = features[bs:, :]
+        l_si = EuclideanLoss(f1, f2.detach())
+        loss = l_sr + options.alpha * l_si
+        loss.backward()
+        optimizer_cnn_h.step()
 
-        #CNNR
-        # loss2 = EuclideanLoss(fea1, fea2) #NOTE: confused about loss2
-        # TODO
-        # LFR = AngleLoss(SI_angular, newlabel)
-        # LFR.backward()
-        # optimizer_CNNR.step()
+        print(' -  Epoch[{}] ({}/{}): Loss: {:.4f}'.format(epoch, iteration, len(train_data_loader), loss.item()))
 
-        #CNNH
-        LSR = EuclideanLoss(SR_data, target)
-        # LSI = EuclideanLoss(SI_embed_HR, SI_embed_SR.detach())
-        newimg = torch.cat((SR_data, target),0)
-        newimg = pjnet(newimg)
-        fea1 = newimg[0:opt.batchSize, :]
-        fea2 = newimg[opt.batchSize:, :]
-        LSI = EuclideanLoss(fea1, fea2.detach())
-        L = LSR + opt.alpha * LSI
-        if opt.judgeloss != 0.0:
-            L += opt.judgeloss * pjnet_loss_fn(SR_data, target, opt.batchSize)
-        L.backward()
-        optimizer_CNNH.step()
+    print('[!] Epoch {} complete.').format(epoch)
 
 
-            # epoch_loss += output.item()
-            # output.backward()
-            # optimizer.step()
-
-        print("===> Epoch[{}]({}/{}): Loss: {:.4f}".format(epoch, iteration, len(training_data_loader), L.item()))
-
-    print("===> Epoch {} Complete: Avg. Loss: {:.4f}".format(epoch, epoch_loss / len(training_data_loader)))
-
-
-def test():
-    avg_psnr = 0
-    with torch.no_grad():
-        cnt = 0
-        for batch in testing_data_loader:
-            cnt += 1
-            input, target = batch[0].to(device), batch[1].to(device)
-
-
-            # loss_num = model(input, target)
-            SR_data = model(input, target)
-        
-            pj_loss = pjnet_loss_fn(SR_data, target, opt.batchSize)
-            avg_loss = 0.0
-            avg_loss += pj_loss
-    print("===> Avg. IS: {:.4f} ".format(avg_loss / cnt))
-
+def test_and_save():
+    pass
 
 def checkpoint(epoch):
     model_out_path = "model_epoch_{}.pth".format(epoch)
+    print('[!] Saving checkpoint into ' + model_out_path + ' ... ', flush=True, end='')
     torch.save(model, model_out_path)
-    print("Checkpoint saved to {}".format(model_out_path))
+    print('done !', flush=True)
 
-for epoch in range(1, opt.nEpochs + 1):
+for epoch in range(1, options.epochs + 1):
     train(epoch)
-    test()
-    
+    test_and_save()
     checkpoint(epoch)
