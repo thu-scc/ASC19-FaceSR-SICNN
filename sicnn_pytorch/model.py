@@ -134,9 +134,9 @@ class SICNNNet(nn.Module):
         # newlabel = torch.cat((target, target), 0)
         SI_embed, SI_angular, fea1, fea2 = self.cnnr(newdata)
         # SI_embed = torch.norm(SI_feature)
-        # print(SI_embed.shape)
+
         # SI_embed = torch.norm(SI_embed)
-        # print(SI_embed.shape)
+
         SI_embed_HR = SI_embed[0:self.batchsize, :]
         SI_embed_SR = SI_embed[self.batchsize:, :]
 
@@ -210,18 +210,18 @@ class CNNRNet(nn.Module):
         y1 = F.max_pool2d(x, 2, 2)
         for i in range(3):
             x = self.reslayer2[i](x)
-        # print(x.shape)
+
 
         # loss2                         #NOTE: don't know what's loss2's function
         # loss2 = self.loss2(fea1, fea2.detach())
         fea1 = x[0:self.batchsize, :]
         fea2 = x[self.batchsize :, :]
-        print("219")
-        print(x.shape)
+
+
         # x = torch.reshape(x, (86016, 512))
         x = x.view(x.size(0), -1)
         SI_embed = self.fc5(x)
-        print(SI_embed.shape)
+
         SI_angular = self.fc6(SI_embed)
         return SI_embed, SI_angular, fea1, fea2
 
