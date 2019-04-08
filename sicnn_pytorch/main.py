@@ -87,9 +87,9 @@ def train(epoch):
         #CNNR
         # loss2 = EuclideanLoss(fea1, fea2) #NOTE: confused about loss2
 
-        LFR = AngleLoss(SI_angular, newlabel)
-        LFR.backward()
-        optimizer_CNNR.step()
+        # LFR = AngleLoss(SI_angular, newlabel)
+        # LFR.backward()
+        # optimizer_CNNR.step()
 
         #CNNH
         LSR = EuclideanLoss(SR_data, target)
