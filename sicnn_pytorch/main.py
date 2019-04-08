@@ -21,8 +21,10 @@ parser.add_argument('--testBatchSize', type=int, default=64, help='testing batch
 parser.add_argument('--nEpochs', type=int, default=20, help='number of epochs to train for')
 parser.add_argument('--lr', type=float, default=0.01, help='Learning Rate. Default=0.01')
 parser.add_argument('--cuda', action='store_true', help='use cuda?')
+parser.add_argument('--judgeloss', type=float, default = 0.0, help='use cuda?')
 parser.add_argument('--threads', type=int, default=4, help='number of threads for data loader to use')
 parser.add_argument('--seed', type=int, default=123, help='random seed to use. Default=123')
+
 
 parser.add_argument('--alpha', type=float, default=10.0, help='alpha to combine LSR and LSI in the paper Algorithm 1')
 opt = parser.parse_args()
@@ -86,7 +88,7 @@ def train(epoch):
 
         #CNNR
         # loss2 = EuclideanLoss(fea1, fea2) #NOTE: confused about loss2
-
+        # TODO
         # LFR = AngleLoss(SI_angular, newlabel)
         # LFR.backward()
         # optimizer_CNNR.step()
@@ -95,13 +97,15 @@ def train(epoch):
         LSR = EuclideanLoss(SR_data, target)
         LSI = EuclideanLoss(SI_embed_HR, SI_embed_SR.detach())
         L = LSR + opt.alpha * LSI
+        if opt.judgeloss != 0.0:
+            L += opt.judgeloss * pjnet_loss_fn(SR_data, target, opt.batchSize)
         L.backward()
         optimizer_CNNH.step()
 
-        # loss = pjnet_loss_fn(output, target, opt.batchSize)
-        # epoch_loss += output.item()
-        # output.backward()
-        # optimizer.step()
+
+            # epoch_loss += output.item()
+            # output.backward()
+            # optimizer.step()
 
         print("===> Epoch[{}]({}/{}): Loss: {:.4f}".format(epoch, iteration, len(training_data_loader), L.item()))
 
@@ -117,14 +121,10 @@ def test():
 
             # loss_num = model(input, target)
             SR_data, SI_embed_HR, SI_embed_SR, SI_angular, fea1, fea2 = model(input, target)
-            print("test")
         
             pj_loss = pjnet_loss_fn(SR_data, target, opt.batchSize)
             avg_loss = 0.0
-            # loss_num = pjnet_loss_fn(prediction, target, opt.testBatchSize)
-            # mse = criterion(prediction, target)
-            # psnr = 10 * log10(1 / mse.item())
-            avg_loss += pj_loss.item()
+            avg_loss += pj_loss
     print("===> Avg. IS: {:.4f} ".format(1 - avg_loss / len(testing_data_loader)))
 
 
@@ -134,7 +134,7 @@ def checkpoint(epoch):
     print("Checkpoint saved to {}".format(model_out_path))
 
 for epoch in range(1, opt.nEpochs + 1):
-    test()
     train(epoch)
+    test()
     
     checkpoint(epoch)
