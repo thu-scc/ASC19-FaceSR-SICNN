@@ -78,11 +78,11 @@ class CNNHNet(nn.Module):
         super(CNNHNet, self).__init__()
         self.batchsize = batch_size
         self.dense1 = DenseBlock(3)
-        self.deconv1 = nn.ConvTranspose2d(256, 256, (2,2), (2,2), padding=0) # ?
+        self.deconv1 = nn.ConvTranspose2d(256, 256, (2,2), (2,2), padding=0)
         self.relude1 = nn.PReLU()
 
         self.dense2 = DenseBlock(256)
-        self.deconv2 = nn.ConvTranspose2d(256, 256, (2,2), (2,2), (0,0)) # ?
+        self.deconv2 = nn.ConvTranspose2d(256, 256, (2,2), (2,2), (0,0))
         self.relude2 = nn.PReLU()
 
         self.dense3 = DenseBlock(256)

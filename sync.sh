@@ -1,0 +1,1 @@
+rsync -avzP ./* im:~/train/

@@ -18,7 +18,6 @@ parser.add_argument('--bs', type=int, default=64, help='training batch size')
 parser.add_argument('--test_bs', type=int, default=64, help='testing batch size')# todo
 parser.add_argument('--epochs', type=int, default=20, help='number of epochs to train for')
 parser.add_argument('--lr', type=float, default=0.0001, help='Learning Rate. Default=0.01')
-parser.add_argument('--cuda', action='store_true', help='use cuda?')
 parser.add_argument('--threads', type=int, default=4, help='number of threads for data loader to use')
 parser.add_argument('--seed', type=int, default=123, help='random seed to use. Default=123')
 parser.add_argument('--alpha', type=float, default=10.0, help='alpha to combine LSR and LSI in the paper algorithm 1')
@@ -27,11 +26,11 @@ options = parser.parse_args()
 
 print(options)
 
-if options.cuda and not torch.cuda.is_available():
+if not torch.cuda.is_available():
     raise Exception('No GPU found, please run without --cuda')
 
 torch.manual_seed(options.seed)
-device = torch.device('cuda' if options.cuda else 'cpu')
+device = torch.device('cuda')
 
 print('[!] Loading datasets ... ', end='', flush=True)
 train_set = get_training_set(options.train)
@@ -51,13 +50,13 @@ for param in cnn_r.parameters():
 cnn_r = cnn_r.cuda()
 print('done !', flush=True)
 
-optimizer_cnn_h = optim.Adam(model.cnnh.parameters(), lr=opt.lr)
+optimizer_cnn_h = optim.Adam(cnn_h.parameters(), lr=options.lr)
 EuclideanLoss = nn.MSELoss()
 AngleLoss = net_sphere.AngleLoss()
 
 def train(epoch):
     print('[!] Training epoch ' + str(epoch) + ' ...')
-    epoch_loss = 0; bs = options.bs
+    bs = options.bs
     for iteration, batch in enumerate(train_data_loader):
         if iteration > 200:
             break
@@ -76,7 +75,7 @@ def train(epoch):
 
         print(' -  Epoch[{}] ({}/{}): Loss: {:.4f}'.format(epoch, iteration, len(train_data_loader), loss.item()))
 
-    print('[!] Epoch {} complete.').format(epoch)
+    print('[!] Epoch {} complete.'.format(epoch))
 
 
 def test_and_save():
