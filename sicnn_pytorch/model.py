@@ -114,7 +114,7 @@ class SICNNNet(nn.Module):
         # self._initialize_weights()
         self.cnnh = CNNHNet(upscale_factor, batch_size)
         self.cnnr = CNNRNet(upscale_factor, batch_size, class_num)
-
+        self.batchsize = batch_size
     def forward(self, input, target):
         """
         Args:
@@ -128,10 +128,10 @@ class SICNNNet(nn.Module):
             fea1, fea2: for loss2(see sicnn.prototxt line 2400)
         """
         LR_data = F.avg_pool2d(input, 4, 4)
-        SR_data = cnnh(LR_data)
-        newdata = torch.cat((input, SRdata), 0) #cat HR image and SR image together to train CNNR
+        SR_data = self.cnnh(LR_data)
+        newdata = torch.cat((input, SR_data), 0) #cat HR image and SR image together to train CNNR
         # newlabel = torch.cat((target, target), 0)
-        SI_embed, SI_angular, fea1, fea2 = cnnr(newdata)
+        SI_embed, SI_angular, fea1, fea2 = self.cnnr(newdata)
         SI_embed = torch.norm(SI_feature)
         SI_embed_HR = SI_embed[0:batchsize, :]
         SI_embed_SR = SI_embed[batchsize:, :]
@@ -158,7 +158,8 @@ class CNNRNet(nn.Module):
         similar to net_sphere.sphere20a, but a little different in network strucure
     """
     def __init__(self, upscale_factor, batch_size, class_num):
-        super(CHHRNet, self).__init__()
+        super(CNNRNet, self).__init__()
+        self.batchsize = batch_size
         self.class_num = class_num
         self.basic1a = BasicBlock(3, 32)
         self.basic1b = BasicBlock(32, 64)
