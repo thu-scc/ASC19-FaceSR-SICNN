@@ -127,21 +127,25 @@ class SICNNNet(nn.Module):
             SI_angular: AngularLinear output(sse net_sphere.AngularLinear)
             fea1, fea2: for loss2(see sicnn.prototxt line 2400)
         """
-        LR_data = F.avg_pool2d(input, 4, 4)
-        SR_data = self.cnnh(LR_data)
-        newdata = torch.cat((input, SR_data), 0) #cat HR image and SR image together to train CNNR
+        # LR_data = F.avg_pool2d(input, 4, 4)
+
+        SR_data = self.cnnh(input)
+        newdata = torch.cat((target, SR_data), 0) #cat HR image and SR image together to train CNNR
         # newlabel = torch.cat((target, target), 0)
         SI_embed, SI_angular, fea1, fea2 = self.cnnr(newdata)
-        SI_embed = torch.norm(SI_feature)
-        SI_embed_HR = SI_embed[0:batchsize, :]
-        SI_embed_SR = SI_embed[batchsize:, :]
+        # SI_embed = torch.norm(SI_feature)
+        # print(SI_embed.shape)
+        # SI_embed = torch.norm(SI_embed)
+        # print(SI_embed.shape)
+        SI_embed_HR = SI_embed[0:self.batchsize, :]
+        SI_embed_SR = SI_embed[self.batchsize:, :]
 
         # loss1 = self.loss1(output1, target)
 
         # loss3 = self.loss3(fc5_1, fc5_2)
         # return loss1 + loss2
 
-        return SR_data, SI_embed_HR, embed_SR, SI_angular, fea1, fea2
+        return SR_data, SI_embed_HR, SI_embed_SR, SI_angular, fea1, fea2
 
         # return output1,
 
@@ -177,8 +181,9 @@ class CNNRNet(nn.Module):
         for i in range(3):
             self.reslayer2.append(ResBlock(512, 512))
             self.reslayer2[i].cuda()
-        self.fc5 = nn.Linear(512, 512)
+        self.fc5 = nn.Linear(344064, 512)
         self.fc6 = net_sphere.AngleLinear(512, self.class_num)
+        # self.fc6 = nn.Linear(512, 512)
 
     def forward(self, input):
         """
@@ -205,13 +210,18 @@ class CNNRNet(nn.Module):
         y1 = F.max_pool2d(x, 2, 2)
         for i in range(3):
             x = self.reslayer2[i](x)
+        # print(x.shape)
 
         # loss2                         #NOTE: don't know what's loss2's function
         # loss2 = self.loss2(fea1, fea2.detach())
         fea1 = x[0:self.batchsize, :]
         fea2 = x[self.batchsize :, :]
-
+        print("219")
+        print(x.shape)
+        # x = torch.reshape(x, (86016, 512))
+        x = x.view(x.size(0), -1)
         SI_embed = self.fc5(x)
+        print(SI_embed.shape)
         SI_angular = self.fc6(SI_embed)
         return SI_embed, SI_angular, fea1, fea2
 

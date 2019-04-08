@@ -30,6 +30,7 @@ class AngleLinear(nn.Module):
 
     def forward(self, input):
         x = input   # size=(B,F)    F is feature len
+        print(input.shape)
         w = self.weight # size=(F,Classnum) F=in_features Classnum=out_features
 
         ww = w.renorm(2,1,1e-5).mul(1e5)
