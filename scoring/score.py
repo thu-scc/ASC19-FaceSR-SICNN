@@ -19,20 +19,18 @@ def evaluate(SR_dir, HR_dir, LR_dir, net, cuda=True):
         img_SR = cv2.imdecode(np.fromfile(file_SR, np.uint8), 1)
         img_LR = cv2.imdecode(np.fromfile(file_LR, np.uint8), 1)
         img_LR = cv2.resize(img_LR, dsize=None, fx=4, fy=4, interpolation=cv2.INTER_CUBIC) # bicubic
-        img_list = [img_HR, cv2.flip(img_HR, 1), img_SR, cv2.flip(img_SR, 1), img_LR, cv2.flip(img_LR, 1)]
+        img_list = [img_HR, img_SR, img_LR]
         for i in range(len(img_list)):
             img_list[i] = img_list[i].transpose(2, 0, 1).reshape((1, 3, 112, 96))
             img_list[i] = (img_list[i] - 127.5) / 128.0
         img = np.vstack(img_list)
+        with torch.no_grad():
+            img = Variable(torch.from_numpy(img).float())
         if cuda:
-            with torch.no_grad():
-                img = Variable(torch.from_numpy(img).float()).cuda()
-        else:
-            with torch.no_grad():
-                img = Variable(torch.from_numpy(img).float())
+            img = img.cuda()
         output = net(img)
         f = output.data
-        f1, f2, f3 = f[0], f[2], f[4]
+        f1, f2, f3 = f[0], f[1], f[2]
         cos_distance = f1.dot(f2) / (f1.norm() * f2.norm() + 1e-5)
         cos_distance_bicubic = f1.dot(f3) / (f1.norm() * f3.norm() + 1e-5)
         cos_distance = float(cos_distance.float()); cos_distance_bicubic = float(cos_distance_bicubic.float())

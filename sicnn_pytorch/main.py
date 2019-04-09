@@ -7,9 +7,15 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from model import CNNHNet
-from data import get_training_set, get_test_set
+from dataset import DatasetFromFolder
 
 import net_sphere
+
+def get_training_set(dir):
+    return DatasetFromFolder(dir + '/train_HR', dir + '/train_LR')
+
+def get_test_set(dir):
+    return DatasetFromFolder(dir + '/valid_HR', dir + '/valid_LR')
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch Super Res Example')
@@ -17,7 +23,7 @@ parser.add_argument('--upscale_factor', type=int, default=4, help="super resolut
 parser.add_argument('--bs', type=int, default=64, help='training batch size')
 parser.add_argument('--test_bs', type=int, default=64, help='testing batch size')# todo
 parser.add_argument('--epochs', type=int, default=20, help='number of epochs to train for')
-parser.add_argument('--lr', type=float, default=0.0001, help='Learning Rate. Default=0.01')
+parser.add_argument('--lr', type=float, default=0.00001, help='Learning Rate. Default=0.01')
 parser.add_argument('--threads', type=int, default=4, help='number of threads for data loader to use')
 parser.add_argument('--seed', type=int, default=123, help='random seed to use. Default=123')
 parser.add_argument('--alpha', type=float, default=10.0, help='alpha to combine LSR and LSI in the paper algorithm 1')
