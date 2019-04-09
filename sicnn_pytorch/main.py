@@ -1,5 +1,5 @@
 from __future__ import print_function
-import argparse, os
+import argparse, os, cv2
 from math import log10
 
 import torch
@@ -42,7 +42,7 @@ print('[!] Loading datasets ... ', end='', flush=True)
 train_set = get_training_set(options.train)
 test_set = get_test_set(options.train)
 train_data_loader = DataLoader(dataset=train_set, num_workers=options.threads, batch_size=options.bs, shuffle=True, drop_last=True)
-test_data_loader = DataLoader(dataset=test_set, num_workers=options.threads, batch_size=options.test_bs, shuffle=False, drop_last=True)
+test_data_loader = DataLoader(dataset=test_set, num_workers=options.threads, batch_size=options.test_bs, shuffle=False, drop_last=False)
 print('done !', flush=True)
 
 print('[!] Building model ... ', end='', flush=True)
@@ -88,12 +88,9 @@ def output_img(output_dir):
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
     with torch.no_grad():
-        print(len(test_data_loader), flush=True)
         for batch in test_data_loader:
             input, target, filename = batch[0].to(device), batch[1].to(device), batch[2]
-            sr = cnn_h(input)
-            print((input, filename), file=sys.stdout)
-            print(sr, flush=True)
+            sr = cnn_h(input).cpu()
             for i in range(len(filename)):
                 img = sr[i] * 128 + 127.5
                 img = img.numpy().transpose(1, 2, 0)
