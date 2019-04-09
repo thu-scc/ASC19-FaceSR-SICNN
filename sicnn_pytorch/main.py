@@ -90,7 +90,7 @@ def test_and_save():
 def checkpoint(epoch):
     model_out_path = "model_epoch_{}.pth".format(epoch)
     print('[!] Saving checkpoint into ' + model_out_path + ' ... ', flush=True, end='')
-    torch.save(model, model_out_path)
+    torch.save(cnn_h, model_out_path)
     print('done !', flush=True)
 
 for epoch in range(1, options.epochs + 1):
