@@ -1,5 +1,5 @@
 from __future__ import print_function
-import argparse
+import argparse, os
 from math import log10
 
 import torch
@@ -7,23 +7,23 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from model import CNNHNet
-from dataset import DatasetFromFolder
+from dataset import TrainDatasetFromFolder, TestDatasetFromFolder
 
 import net_sphere
 
 def get_training_set(dir):
-    return DatasetFromFolder(dir + '/train_HR', dir + '/train_LR')
+    return TrainDatasetFromFolder(dir + '/train_HR', dir + '/train_LR')
 
 def get_test_set(dir):
-    return DatasetFromFolder(dir + '/valid_HR', dir + '/valid_LR')
+    return TestDatasetFromFolder(dir + '/valid_HR', dir + '/valid_LR')
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch Super Res Example')
 parser.add_argument('--upscale_factor', type=int, default=4, help="super resolution upscale factor")
-parser.add_argument('--bs', type=int, default=64, help='training batch size')
-parser.add_argument('--test_bs', type=int, default=64, help='testing batch size')# todo
+parser.add_argument('--bs', type=int, default=128, help='training batch size')
+parser.add_argument('--test_bs', type=int, default=128, help='testing batch size')# todo
 parser.add_argument('--epochs', type=int, default=20, help='number of epochs to train for')
-parser.add_argument('--lr', type=float, default=0.00001, help='Learning Rate. Default=0.01')
+parser.add_argument('--lr', type=float, default=0.1, help='Learning Rate. Default=0.01')
 parser.add_argument('--threads', type=int, default=4, help='number of threads for data loader to use')
 parser.add_argument('--seed', type=int, default=123, help='random seed to use. Default=123')
 parser.add_argument('--alpha', type=float, default=10.0, help='alpha to combine LSR and LSI in the paper algorithm 1')
@@ -64,7 +64,7 @@ def train(epoch):
     print('[!] Training epoch ' + str(epoch) + ' ...')
     bs = options.bs
     for iteration, batch in enumerate(train_data_loader):
-        if iteration > 200:
+        if iteration > 5:
             break
         input, target = batch[0].to(device), batch[1].to(device)
         optimizer_cnn_h.zero_grad()
@@ -72,10 +72,11 @@ def train(epoch):
         sr_img = cnn_h(input)
         l_sr = EuclideanLoss(sr_img, target)
 
-        features = cnn_r(torch.cat((sr_img, target), 0))
-        f1 = features[0:bs, :]; f2 = features[bs:, :]
-        l_si = EuclideanLoss(f1, f2.detach())
-        loss = l_sr + options.alpha * l_si
+        # features = cnn_r(torch.cat((sr_img, target), 0))
+        # f1 = features[0:bs, :]; f2 = features[bs:, :]
+        # l_si = EuclideanLoss(f1, f2.detach())
+        # loss = l_sr + options.alpha * l_si
+        loss = l_sr
         loss.backward()
         optimizer_cnn_h.step()
 
@@ -83,9 +84,25 @@ def train(epoch):
 
     print('[!] Epoch {} complete.'.format(epoch))
 
+def output_img(output_dir):
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
+    with torch.no_grad():
+        print(len(test_data_loader), flush=True)
+        for batch in test_data_loader:
+            input, target, filename = batch[0].to(device), batch[1].to(device), batch[2]
+            sr = cnn_h(input)
+            print((input, filename), file=sys.stdout)
+            print(sr, flush=True)
+            for i in range(len(filename)):
+                img = sr[i] * 128 + 127.5
+                img = img.numpy().transpose(1, 2, 0)
+                cv2.imwrite(output_dir + '/' + filename[i].split('/')[-1], img)
 
-def test_and_save():
-    pass
+def test_and_save(epoch):
+    print('[!] Saving test results ... ', flush=True, end='')
+    output_img('output_' + str(epoch))
+    print('done !', flush=True)
 
 def checkpoint(epoch):
     model_out_path = "model_epoch_{}.pth".format(epoch)
@@ -95,5 +112,5 @@ def checkpoint(epoch):
 
 for epoch in range(1, options.epochs + 1):
     train(epoch)
-    test_and_save()
+    test_and_save(epoch)
     checkpoint(epoch)
