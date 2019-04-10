@@ -21,13 +21,13 @@ def get_test_set(dir):
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch Super Res Example')
 parser.add_argument('--upscale_factor', type=int, default=4, help="super resolution upscale factor")
-parser.add_argument('--bs', type=int, default=128, help='training batch size')
+parser.add_argument('--bs', type=int, default=256, help='training batch size')
 parser.add_argument('--test_bs', type=int, default=128, help='testing batch size')
-parser.add_argument('--epochs', type=int, default=20, help='number of epochs to train for')
+parser.add_argument('--epochs', type=int, default=200, help='number of epochs to train for')
 parser.add_argument('--lr', type=float, default=0.0001, help='Learning Rate. Default=0.01')
 parser.add_argument('--threads', type=int, default=4, help='number of threads for data loader to use')
 parser.add_argument('--seed', type=int, default=123, help='random seed to use. Default=123')
-parser.add_argument('--alpha', type=float, default=10.0, help='alpha to combine LSR and LSI in the paper algorithm 1')
+parser.add_argument('--alpha', type=float, default=0.1, help='alpha to combine LSR and LSI in the paper algorithm 1')
 parser.add_argument('--train', type=str, default='/home/zhaocg/celeba/dataset', help='path to training dataset')
 parser.add_argument('--result', type=str, default='results', help='result dir')
 parser.add_argument('--model_output', type=str, default='models', help='model output dir')
@@ -65,6 +65,9 @@ EuclideanLoss = nn.MSELoss()
 
 def train(epoch):
     print('[!] Training epoch ' + str(epoch) + ' ...')
+    options.alpha *= 1.1
+    print(' -  Current learning rate is ' + str(options.lr), flush=True)
+    print(' -  Current alpha is ' + str(options.alpha), flush=True)
     bs = options.bs
     for iteration, batch in enumerate(train_data_loader):
         input, target = batch[0].to(device), batch[1].to(device)
