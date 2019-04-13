@@ -19,7 +19,7 @@ def get_test_set(dir):
     return TestDatasetFromFolder(dir + '/valid_HR', dir + '/valid_LR')
 
 def get_cnnr_set(dir):
-    return RecDatasetFromFolder(dir + '/train_HR', dir + '/train_LR')
+    return RecDatasetFromFolder(dir + '/train_HR', dir + '/train_LR', options.classnum)
 
 
 # Training settings
@@ -28,6 +28,7 @@ parser.add_argument('--upscale_factor', type=int, default=4, help="super resolut
 parser.add_argument('--bs', type=int, default=256, help='training batch size')
 parser.add_argument('--test_bs', type=int, default=128, help='testing batch size')
 parser.add_argument('--cnnr_bs', type=int, default=256, help='cnnr batch size, be cautious if you want to change' )
+parser.add_argument('--classnum', type=int, default=7168, help='number of class, should be divided by cnnr_bs' )
 parser.add_argument('--epochs', type=int, default=200, help='number of epochs to train for')
 parser.add_argument('--lr', type=float, default=0.0001, help='Learning Rate. Default=0.01')
 parser.add_argument('--lr_cnnr', type=float, default=0.0001, help='Learning Rate. Default=0.01')
@@ -49,12 +50,12 @@ torch.manual_seed(options.seed)
 device = torch.device('cuda')
 
 print('[!] Loading datasets ... ', end='', flush=True)
-train_set = get_training_set(options.train)
+# train_set = get_training_set(options.train)
 test_set = get_test_set(options.train)
 cnnr_set = get_cnnr_set(options.cnnr)
 
 cnnr_data_loader = DataLoader(dataset=cnnr_set, num_workers=options.threads, batch_size=options.cnnr_bs, shuffle=False, drop_last=True) # shuffle must be false, otherwise the label of images in one batch may not be unique
-train_data_loader = DataLoader(dataset=train_set, num_workers=options.threads, batch_size=options.bs, shuffle=True, drop_last=True)
+# train_data_loader = DataLoader(dataset=train_set, num_workers=options.threads, batch_size=options.bs, shuffle=True, drop_last=True)
 test_data_loader = DataLoader(dataset=test_set, num_workers=options.threads, batch_size=options.test_bs, shuffle=False, drop_last=False)
 print('done !', flush=True)
 
@@ -68,7 +69,7 @@ for param in cnn_r.parameters():
     param.requires_grad = False
 cnn_r = cnn_r.cuda()
 
-cnn_r_train = getattr(net_sphere, 'sphere20a')(classnum=5120)
+cnn_r_train = getattr(net_sphere, 'sphere20a')(classnum=options.classnum)
 cnn_r_train = cnn_r_train.cuda()
 
 print('done !', flush=True)
@@ -129,7 +130,7 @@ def train(epoch):
         loss.backward()
         optimizer_cnn_h.step()
 
-        print(' -  Epoch[{}] ({}/{}): Loss: {:.4f} l_sr: {:.4f} l_si: {:.4f}'.format(epoch, iteration, len(train_data_loader), loss.item(), l_sr.item(), l_si.item()))
+        print(' -  Epoch[{}] ({}/{}): Loss: {:.4f} l_sr: {:.4f} l_si: {:.4f}'.format(epoch, iteration, len(cnnr_data_loader), loss.item(), l_sr.item(), l_si.item()))
 
     print('[!] Epoch {} complete.'.format(epoch))
 

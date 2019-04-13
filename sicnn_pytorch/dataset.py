@@ -15,21 +15,22 @@ def load_img(filepath):
 
 class RecDatasetFromFolder(data.Dataset):
     # dataloader's shuffle should be false
-    def __init__(self, HR_image_dir, LR_image_dir):
+    def __init__(self, HR_image_dir, LR_image_dir, classnum):
         super(RecDatasetFromFolder, self).__init__()
         self.HR_image_dir = HR_image_dir
         self.LR_image_dir = LR_image_dir
         self.image_filenames = [x for x in listdir(HR_image_dir)]
-        self.image_filenames = self.image_filenames[:5120]
-        assert(len(self.image_filenames) == 5120)
+        self.classnum = classnum
+        self.image_filenames = self.image_filenames[:self.classnum]
+        assert(len(self.image_filenames) == self.classnum)
         # for i in self.image_filenames:
         #     print(HR_image_dir+'/'+i, len(HR_image_dir + '/' + i))
         #     assert(len(HR_image_dir + '/' + i) == 20)
 
     def __getitem__(self, index):
-        label = index % 5120
-        file_name = "%06d.jpg" % (index // 5120)
-        folder_name = "%04d" % (index % 5120)
+        label = index % self.classnum
+        file_name = "%06d.jpg" % (index // self.classnum)
+        folder_name = "%04d" % (index % self.classnum)
         input = load_img(join(self.LR_image_dir, folder_name, file_name))
         target = load_img(join(self.HR_image_dir, folder_name, file_name))
         input = input.transpose(2, 0, 1) # 28 x 24
@@ -41,7 +42,7 @@ class RecDatasetFromFolder(data.Dataset):
         return input, target, label
         
     def __len__(self):
-        return 102400 # 5120 folders, 20 img in each folder
+        return self.classnum*20 # 20 images per folder
 
 class TrainDatasetFromFolder(data.Dataset):
     def __init__(self, HR_image_dir, LR_image_dir):
