@@ -27,7 +27,7 @@ parser = argparse.ArgumentParser(description='PyTorch Super Res Example')
 parser.add_argument('--upscale_factor', type=int, default=4, help="super resolution upscale factor")
 parser.add_argument('--bs', type=int, default=256, help='training batch size')
 parser.add_argument('--test_bs', type=int, default=128, help='testing batch size')
-parser.add_argument('--cnnr_bs', type=int, default=512, help='cnnr batch size, be cautious if you want to change' )
+parser.add_argument('--cnnr_bs', type=int, default=256, help='cnnr batch size, be cautious if you want to change' )
 parser.add_argument('--epochs', type=int, default=200, help='number of epochs to train for')
 parser.add_argument('--lr', type=float, default=0.0001, help='Learning Rate. Default=0.01')
 parser.add_argument('--lr_cnnr', type=float, default=0.0001, help='Learning Rate. Default=0.01')
@@ -80,43 +80,47 @@ AngleLoss = net_sphere.AngleLoss()
 
 def train(epoch):
     print('[!] Training epoch ' + str(epoch) + ' ...')
-    # train cnn_r
-    for param in cnn_h.parameters():
-        param.requires_grad = False
+    options.alpha *= 1.1
+    print(' -  Current learning rate is ' + str(options.lr), flush=True)
+    print(' -  Current alpha is ' + str(options.alpha), flush=True)
+    bs = options.bs
+
     for iteration, batch in enumerate(cnnr_data_loader):
         LR, HR, label = batch[0].cuda(), batch[1].cuda(), batch[2].cuda()
-        optimizer_cnn_r_train.zero_grad()
+        # ---------cnn_r-----------------
+        for param in cnn_h.parameters():
+            param.requires_grad = False
+        for param in cnn_r_train.parameters():
+            param.requires_grad = True
         cnn_r_train.feature = False
-
+        optimizer_cnn_r_train.zero_grad()
+        
         feature_HR = cnn_r_train(HR)
         loss_HR = AngleLoss(feature_HR, label)
 
-        SR = cnn_h(LR)
-        
+        SR = cnn_h(LR)        
         feature_SR = cnn_r_train(SR)
         loss_SR = AngleLoss(feature_SR, label)
         
         loss = loss_HR + loss_SR # maybe it should be loss_HR + beta * loss_SR ?
+
         loss.backward()
         optimizer_cnn_r_train.step()
 
         print('CNNR:  Epoch[{}] ({}/{}): Loss: {:.4f} sr: {:.4f} hr: {:.4f}'.format(epoch, iteration, len(cnnr_data_loader), loss.item(), loss_SR.item(), loss_HR.item()))
 
-    for param in cnn_h.parameters():
-        param.requires_grad = True
-    # train cnn_h
-    options.alpha *= 1.1
-    print(' -  Current learning rate is ' + str(options.lr), flush=True)
-    print(' -  Current alpha is ' + str(options.alpha), flush=True)
-    bs = options.bs
-    
-    for iteration, batch in enumerate(train_data_loader):
-        input, target = batch[0].to(device), batch[1].to(device)
+        # ---------cnn_h-----------------
+        for param in cnn_h.parameters():
+            param.requires_grad = True
+        for param in cnn_r_train.parameters():
+            param.requires_grad = False
+        cnn_r_train.feature = True
         optimizer_cnn_h.zero_grad()
 
+        input = LR # rename
+        target = HR # rename
         sr_img = cnn_h(input)
         l_sr = EuclideanLoss(sr_img, target)
-        cnn_r_train.feature = True
         features = cnn_r_train(torch.cat((sr_img, target), 0))
     
         f1 = features[0:bs, :]; f2 = features[bs:, :]

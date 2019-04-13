@@ -46,12 +46,11 @@ def evaluate(SR_dir, HR_dir, LR_dir, net, cuda=True):
         if max_v_bicubic < cos_distance_bicubic: max_v_bicubic = cos_distance_bicubic
         count += 1
         score += ((cos_distance - cos_distance_bicubic) / (1.0 - cos_distance_bicubic)) ** 2 # assume best is perfect
-    avg = sum/count; avg_bicubic = sum_bicubic/count
     print('done !')
     print(' -  ave: ' + str(sum / count) + ' / ' + str(sum_bicubic / count))
     print(' -  min: ' + str(min_v) + ' / ' + str(min_v_bicubic))
     print(' -  max: ' + str(max_v) + ' / ' + str(max_v_bicubic))
-    print(' -  score: ' + str(18.0 * (avg-avg_bicubic)**2 / (0.65-avg_bicubic)**2), flush=True)
+    print(' -  score: ' + str(18.0 * score / count), flush=True)
     return
 
 if __name__ == '__main__':
