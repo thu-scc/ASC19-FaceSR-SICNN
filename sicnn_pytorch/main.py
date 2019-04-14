@@ -103,7 +103,7 @@ def train(epoch):
         feature_SR = cnn_r_train(SR)
         loss_SR = AngleLoss(feature_SR, label)
         
-        loss = loss_HR + loss_SR # maybe it should be loss_HR + beta * loss_SR ?
+        loss = loss_HR # maybe it should be loss_HR + beta * loss_SR ?
 
         loss.backward()
         optimizer_cnn_r_train.step()
@@ -126,7 +126,7 @@ def train(epoch):
     
         f1 = features[0:bs, :]; f2 = features[bs:, :]
         l_si = EuclideanLoss(f1, f2.detach())
-        loss = l_sr + options.alpha * l_si
+        loss = l_sr*10 + options.alpha * l_si
         loss.backward()
         optimizer_cnn_h.step()
 

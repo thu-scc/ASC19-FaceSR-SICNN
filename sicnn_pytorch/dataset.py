@@ -19,13 +19,7 @@ class RecDatasetFromFolder(data.Dataset):
         super(RecDatasetFromFolder, self).__init__()
         self.HR_image_dir = HR_image_dir
         self.LR_image_dir = LR_image_dir
-        self.image_filenames = [x for x in listdir(HR_image_dir)]
         self.classnum = classnum
-        self.image_filenames = self.image_filenames[:self.classnum]
-        assert(len(self.image_filenames) == self.classnum)
-        # for i in self.image_filenames:
-        #     print(HR_image_dir+'/'+i, len(HR_image_dir + '/' + i))
-        #     assert(len(HR_image_dir + '/' + i) == 20)
 
     def __getitem__(self, index):
         label = index % self.classnum
