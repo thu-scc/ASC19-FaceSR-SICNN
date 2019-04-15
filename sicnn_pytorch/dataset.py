@@ -3,6 +3,7 @@ import cv2, sys
 import numpy as np
 import torch
 
+from gen_lr import gen_lr
 from os import listdir
 from os.path import join
 from PIL import Image
@@ -56,7 +57,7 @@ class RecDatasetFromFolder(data.Dataset):
         file_dir, label, landmarks = self.images_info[index]
         HR = load_img(join(self.dataset_dir, file_dir))
         HR = alignment(HR, landmarks)
-        LR = cv2.resize(HR, dsize=None, fx=1/4, fy=1/4, interpolation=cv2.INTER_CUBIC)
+        LR = gen_lr(HR, dsize=None, fx=1/4, fy=1/4, interpolation=cv2.INTER_CUBIC)
         HR = HR.transpose(2, 0, 1) # 112 * 96
         HR = (HR - 127.5) / 128.0
         LR = LR.transpose(2, 0, 1) # 28 * 24
