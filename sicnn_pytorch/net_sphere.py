@@ -28,14 +28,14 @@ class AngleLinear(nn.Module):
         self.weight.data.uniform_(-1, 1).renorm_(2,1,1e-5).mul_(1e5)
         self.phiflag = phiflag
         self.m = m
-        # self.mlambda = [
-        #     lambda x: x**0,
-        #     lambda x: x**1,
-        #     lambda x: 2*x**2-1,
-        #     lambda x: 4*x**3-3*x,
-        #     lambda x: 8*x**4-8*x**2+1,
-        #     lambda x: 16*x**5-20*x**3+5*x
-        # ]
+        self.mlambda = [
+            lambda x: x**0,
+            lambda x: x**1,
+            lambda x: 2*x**2-1,
+            lambda x: 4*x**3-3*x,
+            lambda x: 8*x**4-8*x**2+1,
+            lambda x: 16*x**5-20*x**3+5*x
+        ]
 
     def forward(self, input):
         x = input   # size=(B,F)    F is feature len
@@ -51,7 +51,7 @@ class AngleLinear(nn.Module):
         cos_theta = cos_theta.clamp(-1,1)
 
         if self.phiflag:
-            cos_m_theta = mlambda[self.m](cos_theta) #changed
+            cos_m_theta = self.mlambda[self.m](cos_theta) #changed
             theta = Variable(cos_theta.data.acos())
             k = (self.m*theta/3.14159265).floor()
             n_one = k*0.0 - 1
