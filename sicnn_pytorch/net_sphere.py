@@ -10,15 +10,6 @@ def myphi(x,m):
     return 1-x**2/math.factorial(2)+x**4/math.factorial(4)-x**6/math.factorial(6) + \
             x**8/math.factorial(8) - x**9/math.factorial(9)
 
-mlambda = [
-            lambda x: x**0,
-            lambda x: x**1,
-            lambda x: 2*x**2-1,
-            lambda x: 4*x**3-3*x,
-            lambda x: 8*x**4-8*x**2+1,
-            lambda x: 16*x**5-20*x**3+5*x
-        ] # in order to save cnnr
-
 class AngleLinear(nn.Module):
     def __init__(self, in_features, out_features, m = 4, phiflag=True):
         super(AngleLinear, self).__init__()
@@ -39,7 +30,6 @@ class AngleLinear(nn.Module):
 
     def forward(self, input):
         x = input   # size=(B,F)    F is feature len
-
         w = self.weight # size=(F,Classnum) F=in_features Classnum=out_features
 
         ww = w.renorm(2,1,1e-5).mul(1e5)
@@ -51,7 +41,7 @@ class AngleLinear(nn.Module):
         cos_theta = cos_theta.clamp(-1,1)
 
         if self.phiflag:
-            cos_m_theta = self.mlambda[self.m](cos_theta) #changed
+            cos_m_theta = self.mlambda[self.m](cos_theta)
             theta = Variable(cos_theta.data.acos())
             k = (self.m*theta/3.14159265).floor()
             n_one = k*0.0 - 1
@@ -91,7 +81,7 @@ class AngleLoss(nn.Module):
         output[index] -= cos_theta[index]*(1.0+0)/(1+self.lamb)
         output[index] += phi_theta[index]*(1.0+0)/(1+self.lamb)
 
-        logpt = F.log_softmax(output, dim=1) #changed
+        logpt = F.log_softmax(output, dim=1)
         logpt = logpt.gather(1,target)
         logpt = logpt.view(-1)
         pt = Variable(logpt.data.exp())
@@ -177,9 +167,10 @@ class sphere20a(nn.Module):
 
         x = self.relu4_1(self.conv4_1(x))
         x = x + self.relu4_3(self.conv4_3(self.relu4_2(self.conv4_2(x))))
-
+    
         x = x.view(x.size(0),-1)
         x = self.fc5(x)
         if self.feature: return x
+
         x = self.fc6(x)
         return x
