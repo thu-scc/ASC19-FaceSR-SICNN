@@ -26,6 +26,27 @@ def load_img_info(mapping):
         imgs.append([img_path, label])
     return imgs
 
+class TrainDatasetFromFolder(data.Dataset):
+    def __init__(self, HR_image_dir, LR_image_dir):
+        super(TrainDatasetFromFolder, self).__init__()
+        self.HR_image_dir = HR_image_dir
+        self.LR_image_dir = LR_image_dir
+        self.image_filenames = [x for x in listdir(LR_image_dir) if is_image_file(x)]
+
+    def __getitem__(self, index):
+        input = load_img(join(self.LR_image_dir, self.image_filenames[index]))
+        target = load_img(join(self.HR_image_dir, self.image_filenames[index]))
+        input = input.transpose(2, 0, 1) # 28 x 24
+        input = (input - 127.5) / 128.0
+        target = target.transpose(2, 0, 1) # 112 x 96
+        target = (target - 127.5) / 128.0
+        input = torch.from_numpy(input).float()
+        target = torch.from_numpy(target).float()
+        return input, target
+
+    def __len__(self):
+        return len(self.image_filenames)
+
 class RecDatasetFromFolder(data.Dataset):
     def __init__(self, HR_dir, LR_dir, mapping):
         super(RecDatasetFromFolder, self).__init__()

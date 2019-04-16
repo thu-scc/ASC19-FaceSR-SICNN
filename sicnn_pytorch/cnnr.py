@@ -17,10 +17,10 @@ def get_train_set(dataset_dir, mapping):
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch Super Res Example')
-parser.add_argument('--bs', type=int, default=256, help='training batch size')
+parser.add_argument('--bs', type=int, default=512, help='training batch size')
 parser.add_argument('--test_bs', type=int, default=256, help='testing batch size')
 parser.add_argument('--epochs', type=int, default=200, help='number of epochs to train for')
-parser.add_argument('--lr_cnnr', type=float, default=0.01, help='Learning Rate. Default=0.1')
+parser.add_argument('--lr_cnnr', type=float, default=0.011, help='Learning Rate. Default=0.1')
 parser.add_argument('--threads', type=int, default=8, help='number of threads for data loader to use')
 parser.add_argument('--seed', type=int, default=123, help='random seed to use. Default=123')
 parser.add_argument('--train', type=str, default='/home/heheda/casia', help='path to cnnr dataset')
