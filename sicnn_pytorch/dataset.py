@@ -27,19 +27,17 @@ def alignment(src_img, src_pts):
     face_img = cv2.warpAffine(src_img, tfm, crop_size)
     return face_img
 
-def load_landmarks(landmark_dir):
-    f = open(landmark_dir)
-    landmarks = []
+def load_img_info(info_dir):
+    f = open(info_dir)
+    imgs = []
     for x in f.readlines():
         if (x[-1]=='\n'):
             x = x[:-1]
-        y = x.split('\t')
-        img_path = y[0]
-        label = int(y[1])
-        landmark = [int(x) for x in y[2:]]
-        landmark = [[landmark[x], landmark[x+1]] for x in range(0, 10, 2)]
-        landmarks.append([img_path, label, landmark])
-    return landmarks
+        y = x.split(' ')
+        img_path = y[1]
+        label = int(y[2])
+        imgs.append([img_path, label])
+    return imgs
 '''
 [
     [file_path, label, [landmark0, landmark1, ... , landmark9]],...
@@ -48,16 +46,16 @@ def load_landmarks(landmark_dir):
 
 class RecDatasetFromFolder(data.Dataset):
     # dataloader's shuffle should be false
-    def __init__(self, dataset_dir, landmark_dir):
+    def __init__(self, HR_dir, LR_dir, info_dir):
         super(RecDatasetFromFolder, self).__init__()
-        self.dataset_dir = dataset_dir
-        self.images_info = load_landmarks(landmark_dir)
+        self.HR_dir = HR_dir
+        self.LR_dir = LR_dir
+        self.images_info = load_img_info(info_dir)
 
     def __getitem__(self, index):
-        file_dir, label, landmarks = self.images_info[index]
-        HR = load_img(join(self.dataset_dir, file_dir))
-        HR = alignment(HR, landmarks)
-        LR = gen_lr(HR, dsize=None, fx=1/4, fy=1/4, interpolation=cv2.INTER_CUBIC)
+        file_dir, label = self.images_info[index]
+        HR = load_img(join(self.HR_dir, file_dir))
+        LR = load_img(join(self.LR_dir, file_dir))
         HR = HR.transpose(2, 0, 1) # 112 * 96
         HR = (HR - 127.5) / 128.0
         LR = LR.transpose(2, 0, 1) # 28 * 24
