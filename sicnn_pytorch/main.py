@@ -24,10 +24,10 @@ parser.add_argument('--upscale_factor', type=int, default=4, help="super resolut
 parser.add_argument('--bs', type=int, default=256, help='training batch size')
 parser.add_argument('--test_bs', type=int, default=128, help='testing batch size')
 parser.add_argument('--epochs', type=int, default=200, help='number of epochs to train for')
-parser.add_argument('--lr', type=float, default=0.0001, help='Learning Rate. Default=0.01')
+parser.add_argument('--lr', type=float, default=0.001, help='Learning Rate. Default=0.01')
 parser.add_argument('--threads', type=int, default=4, help='number of threads for data loader to use')
 parser.add_argument('--seed', type=int, default=123, help='random seed to use. Default=123')
-parser.add_argument('--alpha', type=float, default=0.1, help='alpha to combine LSR and LSI in the paper algorithm 1')
+parser.add_argument('--alpha', type=float, default=16, help='alpha to combine LSR and LSI in the paper algorithm 1')
 parser.add_argument('--train', type=str, default='/home/zhaocg/celeba/dataset', help='path to training dataset')
 parser.add_argument('--result', type=str, default='results', help='result dir')
 parser.add_argument('--model_output', type=str, default='models', help='model output dir')
@@ -59,13 +59,13 @@ for param in cnn_r.parameters():
 cnn_r = cnn_r.cuda()
 print('done !', flush=True)
 
-optimizer_cnn_h = optim.Adam(cnn_h.parameters(), lr=options.lr)
+optimizer_cnn_h = optim.SGD(cnn_h.parameters(), lr=options.lr, momentum=0.9, weight_decay=0.00025)
 EuclideanLoss = nn.MSELoss()
 # AngleLoss = net_sphere.AngleLoss()
 
 def train(epoch):
     print('[!] Training epoch ' + str(epoch) + ' ...')
-    options.alpha *= 1.1
+    # options.alpha *= 1.2
     print(' -  Current learning rate is ' + str(options.lr), flush=True)
     print(' -  Current alpha is ' + str(options.alpha), flush=True)
     bs = options.bs
@@ -83,7 +83,7 @@ def train(epoch):
         loss.backward()
         optimizer_cnn_h.step()
 
-        print(' -  Epoch[{}] ({}/{}): Loss: {:.4f}'.format(epoch, iteration, len(train_data_loader), loss.item()))
+        print(' -  Epoch[{}] ({}/{}): Loss: {:.4f}\r'.format(epoch, iteration, len(train_data_loader), loss.item()), end='')
 
     print('[!] Epoch {} complete.'.format(epoch))
 
