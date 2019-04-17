@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 from model import CNNHNet
 from dataset import TrainDatasetFromFolder, TestDatasetFromFolder
 from score import evaluate
+import torch.nn.functional as F
 
 import net_sphere
 
@@ -80,14 +81,15 @@ def train(epoch):
 
         features = cnn_r(torch.cat((sr_img, target), 0))
         f1 = features[0:bs, :]; f2 = features[bs:, :]
-        l_si = EuclideanLoss(f1, f2.detach())
+        f1_norm = F.normalize(f1); f2_norm = F.normalize(f2)
+        l_si = EuclideanLoss(f1_norm, f2_norm.detach())
         loss = l_sr + options.alpha * l_si
         loss.backward()
         optimizer_cnn_h.step()
 
-        print(' -  Epoch[{}] ({}/{}): Loss: {:.4f}\r'.format(epoch, iteration, len(train_data_loader), loss.item()), end='')
+        print(' -  Epoch[{}] ({}/{}): Loss: {:.4f} sr: {:.4f} si: {:.8f}\r'.format(epoch, iteration, len(train_data_loader), loss.item(), l_sr.item(), l_si.item()), end='')
 
-    print('[!] Epoch {} complete.'.format(epoch))
+    print('\n[!] Epoch {} complete.'.format(epoch))
 
 def output_img(output_dir):
     if not os.path.exists(output_dir):
