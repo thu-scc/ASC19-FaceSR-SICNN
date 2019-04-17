@@ -31,6 +31,7 @@ parser.add_argument('--alpha', type=float, default=16, help='alpha to combine LS
 parser.add_argument('--train', type=str, default='/home/zhaocg/celeba/dataset', help='path to training dataset')
 parser.add_argument('--result', type=str, default='results', help='result dir')
 parser.add_argument('--model_output', type=str, default='models', help='model output dir')
+parser.add_argument('--alpha_rate', type=float, default='1', help='alpha increase rate')
 options = parser.parse_args()
 
 print(options)
@@ -59,13 +60,14 @@ for param in cnn_r.parameters():
 cnn_r = cnn_r.cuda()
 print('done !', flush=True)
 
-optimizer_cnn_h = optim.SGD(cnn_h.parameters(), lr=options.lr, momentum=0.9, weight_decay=0.00025)
+# optimizer_cnn_h = optim.SGD(cnn_h.parameters(), lr=options.lr, momentum=0.9, weight_decay=0.00025)
+optimizer_cnn_h = optim.Adam(cnn_h.parameters(), lr=options.lr)
 EuclideanLoss = nn.MSELoss()
 # AngleLoss = net_sphere.AngleLoss()
 
 def train(epoch):
     print('[!] Training epoch ' + str(epoch) + ' ...')
-    # options.alpha *= 1.2
+    options.alpha *= options.alpha_rate
     print(' -  Current learning rate is ' + str(options.lr), flush=True)
     print(' -  Current alpha is ' + str(options.alpha), flush=True)
     bs = options.bs
