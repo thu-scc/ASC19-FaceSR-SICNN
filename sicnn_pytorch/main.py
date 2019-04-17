@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 import time
 import net_sphere
+import torch.nn.functional as F
 
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
@@ -96,13 +97,11 @@ def train(epoch):
         optimizer_cnn_r_train.zero_grad()
 
         output_labels = cnn_r_train(torch.cat((sr, hr), 0))
-        loss = AngleLoss(output_labels, torch.cat((labels, labels), 0))
-        loss.backward()
+        lossR = AngleLoss(output_labels, torch.cat((labels, labels), 0))
+        lossR.backward()
         optimizer_cnn_r_train.step()
-        if iteration % 100 == 0:
-            print(' -  Epoch[{}] ({}/{}): LossR: {:.4f}'.format(epoch, iteration, len(train_data_loader), loss.item()))
 
-        # --- cnn_h --- 
+        # --- cnn_h ---
         for param in cnn_h.parameters():
             param.requires_grad = True
         for param in cnn_r_train.parameters():
@@ -115,14 +114,14 @@ def train(epoch):
         l_sr = EuclideanLoss(sr, hr)
         features = cnn_r_train(torch.cat((sr, hr), 0))
         f1 = features[0:bs, :]; f2 = features[bs:, :]
-        l_si = EuclideanLoss(f1, f2.detach())
-        loss = l_sr + options.alpha * l_si
-        loss.backward()
+        f1_norm, f2_norm = F.normalize(f1), F.normalize(f2)
+        l_si = EuclideanLoss(f1_norm, f2_norm.detach())
+        lossH = l_sr + options.alpha * l_si
+        lossH.backward()
         optimizer_cnn_h.step()
-        if iteration % 100 == 0:
-            print(' -  Epoch[{}] ({}/{}): LossH: {:.4f}'.format(epoch, iteration, len(train_data_loader), loss.item()))
+        print(' -  Epoch[{}] ({}/{}): LossR: {:.4f} LossH: {:.4f} sr: {:.4f} si: {:.4f}\r'.format(epoch, iteration, len(train_data_loader), lossR.item(), lossH.item(), l_sr.item(), l_si.item()), end='', flush=True)
 
-    print('[!] Epoch {} complete.'.format(epoch))
+    print('\n[!] Epoch {} complete.'.format(epoch))
 
 def output_img(output_dir):
     if not os.path.exists(output_dir):
