@@ -38,6 +38,7 @@ parser.add_argument('--train', type=str, default='/home/heheda/casia', help='pat
 parser.add_argument('--label', type=str, default='/home/heheda/casia/mapping.txt', help='path to training dataset')
 parser.add_argument('--result', type=str, default='results', help='result dir')
 parser.add_argument('--model_output', type=str, default='models', help='model output dir')
+parser.add_augument('--device', type=int, default=0, help='gpu device')
 options = parser.parse_args()
 
 print(options)
@@ -47,6 +48,7 @@ if not torch.cuda.is_available():
 
 torch.manual_seed(options.seed)
 device = torch.device('cuda')
+torch.cuda.set_device(options.device)
 
 print('[!] Loading datasets ... ', end='', flush=True)
 test_set = get_test_set(options.test)
