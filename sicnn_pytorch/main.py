@@ -13,11 +13,11 @@ import torch.nn.functional as F
 
 import net_sphere
 
-def get_training_set(dir):
-    return TrainDatasetFromFolder(dir + '/train_HR', dir + '/train_LR')
+def get_training_set(dir, options):
+    return TrainDatasetFromFolder(dir + '/train_HR', dir + '/train_LR', options)
 
-def get_test_set(dir):
-    return TestDatasetFromFolder(dir + '/valid_HR', dir + '/valid_LR')
+def get_test_set(dir, options):
+    return TestDatasetFromFolder(dir + '/valid_HR', dir + '/valid_LR', options)
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch Super Res Example')
@@ -34,6 +34,9 @@ parser.add_argument('--result', type=str, default='results', help='result dir')
 parser.add_argument('--model_output', type=str, default='models', help='model output dir')
 parser.add_argument('--alpha_rate', type=float, default='1', help='alpha increase rate')
 parser.add_argument('--device', type=int, default=0, help='gpu device')
+parser.add_argument('--load', type=str, default='', help='load model')
+parser.add_argument('--train_data_cut', type=float, default=1.0, help="trainning data cut")
+parser.add_argument('--test_data_cut', type=float, default=1.0, help="testting data cut")
 options = parser.parse_args()
 
 print(options)
@@ -46,20 +49,23 @@ device = torch.device('cuda')
 torch.cuda.set_device(options.device)
 
 print('[!] Loading datasets ... ', end='', flush=True)
-train_set = get_training_set(options.train)
-test_set = get_test_set(options.train)
+train_set = get_training_set(options.train, options)
+test_set = get_test_set(options.train, options)
 train_data_loader = DataLoader(dataset=train_set, num_workers=options.threads, batch_size=options.bs, shuffle=True, drop_last=True)
 test_data_loader = DataLoader(dataset=test_set, num_workers=options.threads, batch_size=options.test_bs, shuffle=False, drop_last=False)
 print('done !', flush=True)
 
 print('[!] Building model ... ', end='', flush=True)
-cnn_h = CNNHNet(upscale_factor=options.upscale_factor, batch_size=options.bs).to(device)
+cnn_h = CNNHNet(upscale_factor=options.upscale_factor, batch_size=options.bs)
+if options.load:
+    cnn_h.load_state_dict(torch.load(options.load))
 cnn_r = getattr(net_sphere, 'sphere20a')()
 cnn_r.load_state_dict(torch.load('sphere20a.pth'))
 cnn_r.feature = True
 
 for param in cnn_r.parameters():
     param.requires_grad = False
+cnn_h = cnn_h.cuda()
 cnn_r = cnn_r.cuda()
 print('done !', flush=True)
 
@@ -122,3 +128,8 @@ for epoch in range(1, options.epochs + 1):
     train(epoch)
     test_and_save(epoch)
     checkpoint(epoch)
+
+def save_model(model, filename):
+    state = model.state_dict()
+    for key in state: state[key] = state[key].clone().cpu()
+    torch.save(state, filename)

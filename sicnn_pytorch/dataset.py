@@ -14,11 +14,12 @@ def load_img(filepath):
     return cv2.imdecode(np.fromfile(filepath, np.uint8), 1)
 
 class TrainDatasetFromFolder(data.Dataset):
-    def __init__(self, HR_image_dir, LR_image_dir):
+    def __init__(self, HR_image_dir, LR_image_dir, options):
         super(TrainDatasetFromFolder, self).__init__()
         self.HR_image_dir = HR_image_dir
         self.LR_image_dir = LR_image_dir
         self.image_filenames = [x for x in listdir(LR_image_dir) if is_image_file(x)]
+        self.data_cut = options.train_data_cut
 
     def __getitem__(self, index):
         input = load_img(join(self.LR_image_dir, self.image_filenames[index]))
@@ -32,14 +33,15 @@ class TrainDatasetFromFolder(data.Dataset):
         return input, target
 
     def __len__(self):
-        return len(self.image_filenames)
+        return int(len(self.image_filenames) * self.data_cut)
 
 class TestDatasetFromFolder(data.Dataset):
-    def __init__(self, HR_image_dir, LR_image_dir):
+    def __init__(self, HR_image_dir, LR_image_dir, options):
         super(TestDatasetFromFolder, self).__init__()
         self.HR_image_dir = HR_image_dir
         self.LR_image_dir = LR_image_dir
         self.image_filenames = [x for x in listdir(LR_image_dir) if is_image_file(x)]
+        self.data_cut = options.test_data_cut
 
     def __getitem__(self, index):
         input = load_img(join(self.LR_image_dir, self.image_filenames[index]))
@@ -53,4 +55,4 @@ class TestDatasetFromFolder(data.Dataset):
         return input, target, self.image_filenames[index]
 
     def __len__(self):
-        return len(self.image_filenames)
+        return int(len(self.image_filenames) * self.data_cut)
