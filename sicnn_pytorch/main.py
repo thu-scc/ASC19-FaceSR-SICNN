@@ -33,6 +33,7 @@ parser.add_argument('--train', type=str, default='/home/zhaocg/celeba/dataset', 
 parser.add_argument('--result', type=str, default='results', help='result dir')
 parser.add_argument('--model_output', type=str, default='models', help='model output dir')
 parser.add_argument('--alpha_rate', type=float, default='1', help='alpha increase rate')
+parser.add_argument('--device', type=int, default=0, help='gpu device')
 options = parser.parse_args()
 
 print(options)
@@ -42,6 +43,7 @@ if not torch.cuda.is_available():
 
 torch.manual_seed(options.seed)
 device = torch.device('cuda')
+torch.cuda.set_device(options.device)
 
 print('[!] Loading datasets ... ', end='', flush=True)
 train_set = get_training_set(options.train)
